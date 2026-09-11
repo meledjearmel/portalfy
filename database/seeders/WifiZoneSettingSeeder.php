@@ -13,7 +13,7 @@ class WifiZoneSettingSeeder extends Seeder
      */
     public function run(): void
     {
-        WifiZoneSetting::query()->updateOrCreate([], [
+        WifiZoneSetting::query()->updateOrCreate(['id' => 1], [
             'name' => 'RapidNet Wifi Zone',
             'slogan' => 'Internet premium, partout, sans compte obligatoire',
             'description' => 'Le hotspot WiFi payant qui vous connecte en quelques secondes.',

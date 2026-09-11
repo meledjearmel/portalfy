@@ -14,8 +14,12 @@ return new class extends Migration
     {
         Schema::create('customers', function (Blueprint $table) {
             $table->id();
-            $table->string('email')->unique();
-            $table->string('phone')->unique();
+            // Pas de contrainte unique() au niveau BDD : les comptes soft-deleted
+            // doivent pouvoir libérer leur email/téléphone pour une nouvelle
+            // inscription. L'unicité parmi les comptes actifs est appliquée par
+            // Rule::unique(Customer::class)->whereNull('deleted_at') côté validation.
+            $table->string('email')->index();
+            $table->string('phone')->index();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('status')->default(CustomerStatus::Active->value);

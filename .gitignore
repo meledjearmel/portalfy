@@ -23,3 +23,6 @@ yarn-error.log
 /.vscode
 /.zed
 /docs
+composer.lock
+package-lock.json
+yarn.lock

@@ -6,7 +6,6 @@ use App\Enums\OrderStatus;
 use App\Models\HotspotAccount;
 use App\Models\Order;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class HotspotAccountSeeder extends Seeder
 {
@@ -21,7 +20,6 @@ class HotspotAccountSeeder extends Seeder
             ->each(function (Order $order) {
                 HotspotAccount::factory()->create([
                     'order_id' => $order->id,
-                    'code' => Str::upper(Str::random(8)),
                 ]);
             });
     }

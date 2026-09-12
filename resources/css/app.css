@@ -72,3 +72,94 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+/*
+ * Liquid Glass — exception au principe "pas d'effets lourds" du design
+ * system, actée par Armel le 2026-09-11 (voir Skill portalfy-design).
+ * Le filtre #glass-distortion est déclaré une seule fois dans
+ * layouts/public.blade.php.
+ */
+
+/*
+ * L'image de fond elle-même est posée en style inline (voir
+ * layouts/public.blade.php) : elle vient de WifiZoneSetting::background_url,
+ * configurable par l'admin — jamais codée en dur ici.
+ */
+.page-background {
+    position: fixed;
+    inset: 0;
+    z-index: -10;
+    background-size: cover;
+    background-position: center;
+}
+
+.glass-card {
+    position: relative;
+    isolation: isolate;
+    border-radius: 20px;
+    box-shadow: 0px 0px 21px -8px rgba(255, 255, 255, 0.3);
+}
+
+.glass-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: 20px;
+    box-shadow: inset 0 0 14px -4px rgba(255, 255, 255, 0.7);
+    pointer-events: none;
+}
+
+.glass-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: 20px;
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    filter: url(#glass-distortion);
+    -webkit-filter: url(#glass-distortion);
+    isolation: isolate;
+    pointer-events: none;
+}
+
+.glass-card > * {
+    position: relative;
+    z-index: 10;
+}
+
+.glass-text {
+    color: white;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.glass-button {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: background-color 0.2s ease;
+}
+
+.glass-button:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.brand-text-shine {
+    background: linear-gradient(90deg, #0f9d8c, #a7f3ec, #0f9d8c);
+    background-size: 200% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: portalfy-text-shine 4s linear infinite;
+}
+
+@keyframes portalfy-text-shine {
+    to {
+        background-position: -200% center;
+    }
+}

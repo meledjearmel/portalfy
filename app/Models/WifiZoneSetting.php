@@ -5,9 +5,12 @@ namespace App\Models;
 use App\Enums\CredentialMode;
 use Database\Factories\WifiZoneSettingFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Vite;
 
 /**
  * @property int $id
@@ -15,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $slogan
  * @property string|null $description
  * @property string|null $logo_path
+ * @property string|null $background_path
  * @property string $color_primary
  * @property string $color_secondary
  * @property string $color_accent
@@ -29,9 +33,10 @@ use Illuminate\Support\Carbon;
  * @property CredentialMode $credential_mode
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read string $background_url
  */
 #[Fillable([
-    'name', 'slogan', 'description', 'logo_path',
+    'name', 'slogan', 'description', 'logo_path', 'background_path',
     'color_primary', 'color_secondary', 'color_accent',
     'phone', 'whatsapp', 'email', 'address', 'opening_hours',
     'social_links', 'terms', 'privacy_policy', 'credential_mode',
@@ -60,5 +65,18 @@ class WifiZoneSetting extends Model
     public static function current(): self
     {
         return self::query()->firstOrCreate(['id' => 1]);
+    }
+
+    /**
+     * URL du fond de page : celui choisi par l'admin dans les paramètres, ou
+     * l'image par défaut du thème si aucun n'a été défini.
+     *
+     * @return Attribute<string, never>
+     */
+    protected function backgroundUrl(): Attribute
+    {
+        return Attribute::get(fn (): string => $this->background_path
+            ? Storage::url($this->background_path)
+            : Vite::asset('resources/images/hero-background.jpg'));
     }
 }

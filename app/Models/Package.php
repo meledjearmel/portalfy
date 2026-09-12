@@ -6,6 +6,7 @@ use Database\Factories\PackageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -52,6 +53,31 @@ class Package extends Model
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];
+    }
+
+    /**
+     * Durée de validité en texte lisible ("1 heure", "3 jours", "1 mois"...).
+     *
+     * @return Attribute<string, never>
+     */
+    protected function durationLabel(): Attribute
+    {
+        return Attribute::get(function (): string {
+            $minutes = $this->duration_minutes;
+
+            return match (true) {
+                $minutes % 43200 === 0 => self::pluralize((int) ($minutes / 43200), 'mois', 'mois'),
+                $minutes % 10080 === 0 => self::pluralize((int) ($minutes / 10080), 'semaine', 'semaines'),
+                $minutes % 1440 === 0 => self::pluralize((int) ($minutes / 1440), 'jour', 'jours'),
+                $minutes % 60 === 0 => self::pluralize((int) ($minutes / 60), 'heure', 'heures'),
+                default => self::pluralize($minutes, 'minute', 'minutes'),
+            };
+        });
+    }
+
+    private static function pluralize(int $count, string $singular, string $plural): string
+    {
+        return $count.' '.($count > 1 ? $plural : $singular);
     }
 
     /**

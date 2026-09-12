@@ -22,12 +22,23 @@ class HotspotAccountFactory extends Factory
     {
         return [
             'order_id' => Order::factory()->paid(),
-            'code' => Str::upper(Str::random(8)),
+            'code' => Str::upper(Str::random(6)),
             'secret' => null,
             'status' => HotspotAccountStatus::Active,
             'activated_at' => now(),
             'expires_at' => now()->addDay(),
         ];
+    }
+
+    /**
+     * Indicate that the access has already been consumed (distinct from
+     * expiring by elapsed time).
+     */
+    public function used(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => HotspotAccountStatus::Used,
+        ]);
     }
 
     /**

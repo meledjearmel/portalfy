@@ -3,16 +3,47 @@
 use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
 use Flux\Flux;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
+use ZillEAli\MikrotikLaravel\Exceptions\ResourceNotFoundException;
+use ZillEAli\MikrotikLaravel\Facades\MikroTik;
 
 new #[Title('Comptes Hotspot')] class extends Component
 {
     use WithPagination;
 
+    /**
+     * Désactive le compte sur RouterOS et coupe immédiatement une éventuelle
+     * session en cours, avant de refléter le changement en local — jamais
+     * l'inverse : un statut "Suspendu" en base sans effet réel sur le
+     * routeur donnerait une fausse confiance à l'admin (le client garderait
+     * son accès).
+     */
     public function suspend(HotspotAccount $account): void
     {
+        try {
+            MikroTik::hotspot()->disableUser($account->code);
+        } catch (\Throwable $e) {
+            $this->reportRouterFailure('suspension', $account, $e);
+
+            return;
+        }
+
+        try {
+            MikroTik::hotspot()->kickHost($account->code);
+        } catch (ResourceNotFoundException) {
+            // Pas de session active à couper : le compte est déjà désactivé
+            // pour toute nouvelle connexion, ce qui suffit.
+        } catch (\Throwable $e) {
+            Log::warning('RouterOS: échec de la déconnexion immédiate lors de la suspension', [
+                'hotspot_account_id' => $account->id,
+                'code' => $account->code,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $account->update(['status' => HotspotAccountStatus::Suspended]);
 
         Flux::toast(variant: 'success', text: 'Accès suspendu.');
@@ -20,6 +51,14 @@ new #[Title('Comptes Hotspot')] class extends Component
 
     public function reactivate(HotspotAccount $account): void
     {
+        try {
+            MikroTik::hotspot()->enableUser($account->code);
+        } catch (\Throwable $e) {
+            $this->reportRouterFailure('réactivation', $account, $e);
+
+            return;
+        }
+
         $account->update(['status' => HotspotAccountStatus::Active]);
 
         Flux::toast(variant: 'success', text: 'Accès réactivé.');
@@ -28,19 +67,46 @@ new #[Title('Comptes Hotspot')] class extends Component
     /**
      * Prolonge l'accès de la durée initiale du forfait, à partir de la date
      * d'expiration actuelle si elle n'est pas encore passée, sinon à partir
-     * de maintenant.
+     * de maintenant. Le `limit-uptime` RouterOS est recalculé comme la durée
+     * totale entre l'activation et la nouvelle expiration, pour rester
+     * cohérent avec la valeur posée au provisioning
+     * (ProvisionHotspotAccountAction) : la prolongation locale n'a d'effet
+     * réel que si le routeur reçoit la même nouvelle échéance.
      */
     public function extend(HotspotAccount $account): void
     {
         $account->loadMissing('order.package');
 
         $base = $account->expires_at?->isFuture() ? $account->expires_at : now();
+        $newExpiresAt = $base->copy()->addMinutes($account->order->package->duration_minutes);
 
-        $account->update([
-            'expires_at' => $base->addMinutes($account->order->package->duration_minutes),
-        ]);
+        $activatedAt = $account->activated_at ?? $account->created_at;
+        $limitUptimeSeconds = $activatedAt->diffInSeconds($newExpiresAt);
+
+        try {
+            MikroTik::hotspot()->updateUser($account->code, [
+                'limit-uptime' => "{$limitUptimeSeconds}s",
+            ]);
+        } catch (\Throwable $e) {
+            $this->reportRouterFailure('prolongation', $account, $e);
+
+            return;
+        }
+
+        $account->update(['expires_at' => $newExpiresAt]);
 
         Flux::toast(variant: 'success', text: 'Accès prolongé.');
+    }
+
+    private function reportRouterFailure(string $action, HotspotAccount $account, \Throwable $e): void
+    {
+        Log::error("RouterOS: échec de la {$action} du compte Hotspot", [
+            'hotspot_account_id' => $account->id,
+            'code' => $account->code,
+            'error' => $e->getMessage(),
+        ]);
+
+        Flux::toast(variant: 'danger', text: "Impossible de contacter le routeur pour l'instant. Réessayez dans un instant.");
     }
 
     public function with(): array

@@ -9,9 +9,6 @@ Route::livewire('/forfaits/{package}/commande', 'pages::orders.create')->name('o
 Route::livewire('/commandes/{order:reference}/retour', 'pages::orders.return')->name('orders.return');
 Route::livewire('/j-ai-un-code', 'pages::hotspot-access.show')->name('hotspot-access.show');
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::view('dashboard', 'dashboard')->name('dashboard');
-});
-
 require __DIR__.'/settings.php';
 require __DIR__.'/account.php';
+require __DIR__.'/admin.php';

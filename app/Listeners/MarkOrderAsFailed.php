@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Enums\OrderStatus;
+use App\Events\AdminDashboardActivity;
 use App\Listeners\Concerns\FindsOrderByPaymentReference;
 use GeniusPay\Laravel\Events\PaymentFailed;
 
@@ -22,5 +23,7 @@ class MarkOrderAsFailed
         }
 
         $order->update(['status' => OrderStatus::Failed]);
+
+        AdminDashboardActivity::dispatch();
     }
 }

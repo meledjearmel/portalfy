@@ -4,6 +4,7 @@ namespace App\Listeners;
 
 use App\Actions\ProvisionHotspotAccountAction;
 use App\Enums\OrderStatus;
+use App\Events\AdminDashboardActivity;
 use App\Listeners\Concerns\FindsOrderByPaymentReference;
 use App\Models\Invoice;
 use App\Models\Order;
@@ -35,6 +36,8 @@ class MarkOrderAsPaid
         }
 
         $order->update(['status' => OrderStatus::Paid]);
+
+        AdminDashboardActivity::dispatch();
 
         if ($order->customer_id && ! $order->invoice) {
             Cache::lock('invoice-number-generation', 10)->block(5, function () use ($order) {

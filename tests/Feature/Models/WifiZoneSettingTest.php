@@ -14,5 +14,19 @@ test('background_url uses the admin-configured file when one is set', function (
 
     $zone = WifiZoneSetting::factory()->create(['background_path' => 'wifi-zone/custom-bg.jpg']);
 
-    expect($zone->background_url)->toBe(Storage::url('wifi-zone/custom-bg.jpg'));
+    expect($zone->background_url)->toBe(Storage::disk('public')->url('wifi-zone/custom-bg.jpg'));
+});
+
+test('logo_url is empty when no logo is configured', function () {
+    $zone = WifiZoneSetting::factory()->create(['logo_path' => null]);
+
+    expect($zone->logo_url)->toBe('');
+});
+
+test('logo_url uses the admin-configured file when one is set', function () {
+    Storage::fake('public');
+
+    $zone = WifiZoneSetting::factory()->create(['logo_path' => 'wifi-zone/logo.png']);
+
+    expect($zone->logo_url)->toBe(Storage::disk('public')->url('wifi-zone/logo.png'));
 });

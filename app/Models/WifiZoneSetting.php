@@ -33,6 +33,7 @@ use Illuminate\Support\Facades\Storage;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read string $background_url
+ * @property-read string $logo_url
  */
 #[Fillable([
     'name', 'slogan', 'description', 'logo_path', 'background_path',
@@ -60,22 +61,44 @@ class WifiZoneSetting extends Model
 
     /**
      * Get the single active zone configuration, creating a default one if none exists yet.
+     *
+     * firstOrCreate() ne recharge pas les valeurs par défaut posées par la
+     * migration (name, color_primary, credential_mode...) : juste après
+     * création, l'instance en mémoire n'a que ['id' => 1] et ces colonnes y
+     * apparaissent à tort comme null tant qu'on ne la recharge pas depuis la BDD.
      */
     public static function current(): self
     {
-        return self::query()->firstOrCreate(['id' => 1]);
+        $zone = self::query()->firstOrCreate(['id' => 1]);
+
+        return $zone->wasRecentlyCreated ? ($zone->fresh() ?? $zone) : $zone;
     }
 
     /**
      * URL du fond de page : celui choisi par l'admin dans les paramètres, ou
-     * l'image par défaut du thème si aucun n'a été défini.
+     * l'image par défaut du thème si aucun n'a été défini. Disque "public"
+     * explicite : le disque par défaut de l'app est "local" (privé,
+     * storage/app/private), un Storage::url() sans disque explicite produit
+     * une URL cassée pour un fichier qui n'y vit pas réellement.
      *
      * @return Attribute<string, never>
      */
     protected function backgroundUrl(): Attribute
     {
         return Attribute::get(fn (): string => $this->background_path
-            ? Storage::url($this->background_path)
+            ? Storage::disk('public')->url($this->background_path)
             : asset('images/hero-background.jpg'));
+    }
+
+    /**
+     * URL du logo, ou chaîne vide si aucun n'a été défini par l'admin.
+     *
+     * @return Attribute<string, never>
+     */
+    protected function logoUrl(): Attribute
+    {
+        return Attribute::get(fn (): string => $this->logo_path
+            ? Storage::disk('public')->url($this->logo_path)
+            : '');
     }
 }

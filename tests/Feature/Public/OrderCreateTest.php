@@ -56,6 +56,34 @@ test('paying creates a pending order, initiates a GeniusPay payment and redirect
         ->and($order->payment_reference)->toBe('PAY-123');
 });
 
+test('a phone number that does not match the Ivorian format is rejected', function () {
+    $package = Package::factory()->create();
+
+    Livewire::test('pages::orders.create', ['package' => $package])
+        ->set('phone', '0912345678')
+        ->call('pay')
+        ->assertHasErrors(['phone' => 'regex']);
+
+    expect(Order::query()->count())->toBe(0);
+});
+
+test('spaces typed by the input mask are stripped before validation', function () {
+    Http::fake([
+        '*/payments' => Http::response([
+            'data' => ['reference' => 'PAY-123', 'checkout_url' => 'https://pay.geniuspay.io/checkout/PAY-123'],
+        ]),
+    ]);
+
+    $package = Package::factory()->create();
+
+    Livewire::test('pages::orders.create', ['package' => $package])
+        ->set('phone', '07 00 00 00 00')
+        ->call('pay')
+        ->assertHasNoErrors();
+
+    expect(Order::query()->sole()->phone)->toBe('0700000000');
+});
+
 test('a failure to reach the payment gateway shows a clear error and does not leave an orphan order', function () {
     Http::fake([
         '*/payments' => Http::response(['message' => 'Erreur API GeniusPay'], 500),

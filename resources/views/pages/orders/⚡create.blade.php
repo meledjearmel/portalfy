@@ -28,8 +28,12 @@ new #[Layout('layouts.public')] #[Title('Récapitulatif')] class extends Compone
 
     public function pay(PaymentGatewayContract $gateway): void
     {
+        $this->phone = preg_replace('/\D/', '', $this->phone);
+
         $this->validate([
-            'phone' => ['required', 'string', 'min:8', 'max:20'],
+            'phone' => ['required', 'regex:/^(01|05|07)\d{8}$/'],
+        ], [
+            'phone.regex' => 'Entrez un numéro ivoirien valide (10 chiffres, commençant par 01, 05 ou 07).',
         ]);
 
         $order = Order::create([
@@ -80,10 +84,17 @@ new #[Layout('layouts.public')] #[Title('Récapitulatif')] class extends Compone
     </div>
 
     <form wire:submit="pay" class="flex flex-col gap-6">
-        <div class="glass-card flex flex-col gap-2 p-6">
-            <flux:field>
-                <flux:label class="glass-text">Numéro de téléphone</flux:label>
-                <flux:input type="tel" wire:model="phone" placeholder="07 00 00 00 00" />
+        <div class="glass-card flex flex-col items-center gap-2 p-6 text-center">
+            <flux:field class="items-center text-center">
+                <flux:label class="glass-text text-center">Numéro de téléphone</flux:label>
+                <flux:input
+                    type="tel"
+                    inputmode="numeric"
+                    wire:model="phone"
+                    placeholder="07 00 00 00 00"
+                    x-mask="'99 99 99 99 99'"
+                    class="text-center"
+                />
                 <flux:error name="phone" />
             </flux:field>
         </div>

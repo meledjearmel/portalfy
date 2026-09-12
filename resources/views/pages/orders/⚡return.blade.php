@@ -1,7 +1,10 @@
 <?php
 
+use App\Actions\CaptureHotspotContextAction;
+use App\Actions\ResolveHotspotLoginCredentialsAction;
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use App\Models\WifiZoneSetting;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -32,6 +35,27 @@ new #[Layout('layouts.public')] #[Title('Vérification du paiement')] class exte
     public function refreshStatus(): void
     {
         $this->order->refresh();
+    }
+
+    /**
+     * Le contexte hotspot (voir CaptureHotspotContextAction) est ce qui
+     * permet l'auto-connexion : sans lui (visiteur arrivé hors wifi
+     * RapidNet), impossible de savoir où poster les identifiants, donc pas
+     * de tentative silencieuse — l'écran l'explique à la place.
+     */
+    public function with(
+        CaptureHotspotContextAction $hotspotContextAction,
+        ResolveHotspotLoginCredentialsAction $resolveHotspotLoginCredentials,
+    ): array {
+        $zone = WifiZoneSetting::current();
+
+        return [
+            'zone' => $zone,
+            'hotspotContext' => $hotspotContextAction->current(),
+            'loginCredentials' => $this->order->hotspotAccount
+                ? $resolveHotspotLoginCredentials->handle($this->order->hotspotAccount, $zone)
+                : null,
+        ];
     }
 };
 ?>
@@ -64,13 +88,60 @@ new #[Layout('layouts.public')] #[Title('Vérification du paiement')] class exte
                     {{ $order->hotspotAccount->code }}
                 </flux:heading>
 
+                @if ($order->hotspotAccount->secret)
+                    <flux:text class="glass-text text-sm opacity-80">Mot de passe</flux:text>
+                    <flux:heading size="lg" class="glass-text text-xl font-bold tracking-widest">
+                        {{ $order->hotspotAccount->secret }}
+                    </flux:heading>
+                @endif
+
+                @if ($hotspotContext)
+                    {{-- wire:ignore : ce bloc ne doit être (re)créé qu'une seule fois,
+                    jamais retouché par un morph Livewire ultérieur (wire:poll,
+                    événement Reverb) qui redéclencherait la soumission du
+                    formulaire et re-tenterait l'authentification RouterOS. --}}
+                    <div wire:ignore>
+                        <iframe name="hotspot-auto-login-frame" class="hidden" aria-hidden="true"></iframe>
+                        <form
+                            id="hotspot-auto-login-form"
+                            method="post"
+                            target="hotspot-auto-login-frame"
+                            action="{{ $hotspotContext['link_login'] }}"
+                        >
+                            <input type="hidden" name="username" value="{{ $loginCredentials['username'] }}">
+                            <input type="hidden" name="password" value="{{ $loginCredentials['password'] }}">
+                            @if ($hotspotContext['link_orig'])
+                                <input type="hidden" name="dst" value="{{ $hotspotContext['link_orig'] }}">
+                            @endif
+                        </form>
+                        <script>
+                            document.getElementById('hotspot-auto-login-form').submit();
+                        </script>
+                    </div>
+
+                    <flux:text class="glass-text text-xs opacity-70">
+                        Connexion automatique au wifi en cours...
+                    </flux:text>
+                @else
+                    <flux:text class="glass-text text-sm opacity-90">
+                        Connecte-toi au wifi {{ $zone->name }} puis reviens sur cette page pour une connexion
+                        automatique.
+                    </flux:text>
+                @endif
+
                 <div
                     x-data="{ copied: false }"
                     class="flex w-full flex-col gap-3"
                 >
-                    <flux:button variant="ghost" class="glass-button w-full" disabled>
-                        Se connecter au WiFi
-                    </flux:button>
+                    @if ($hotspotContext)
+                        <flux:button
+                            variant="ghost"
+                            class="glass-button w-full"
+                            x-on:click="document.getElementById('hotspot-auto-login-form').submit()"
+                        >
+                            Se connecter au WiFi
+                        </flux:button>
+                    @endif
 
                     <div class="flex gap-3">
                         <flux:button

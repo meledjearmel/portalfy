@@ -4,9 +4,19 @@ import Pusher from 'pusher-js';
 window.Pusher = Pusher;
 
 /**
- * Broadcasting isn't configured yet (no VITE_REVERB_APP_KEY set) — the app
- * doesn't rely on it currently (order status updates use wire:poll instead),
- * so skip initialization rather than crash the whole bundle in production.
+ * Used by the order return screen (pages::orders.return) to show the
+ * hotspot code the instant it's provisioned, via Livewire's PUBLIC echo:
+ * listener (not echo-private:) — the channel is intentionally public, the
+ * order reference itself acting as the shared secret, because the checkout
+ * flow is anonymous (no account required). Do not switch this to a private
+ * channel: Reverb/Pusher reject private-channel subscriptions from
+ * unauthenticated guests before the custom authorization callback even
+ * runs, which would break this flow entirely. wire:poll stays as a
+ * fallback if the socket never connects (Reverb down, browser/network
+ * blocking WebSockets).
+ *
+ * Skip initialization gracefully when unconfigured rather than crash the
+ * whole bundle (e.g. a deploy that hasn't set VITE_REVERB_APP_KEY yet).
  */
 if (import.meta.env.VITE_REVERB_APP_KEY) {
     window.Echo = new Echo({

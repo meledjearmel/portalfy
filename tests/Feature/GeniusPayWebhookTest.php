@@ -2,8 +2,13 @@
 
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use ZillEAli\MikrotikLaravel\Testing\MikrotikFake;
 
 test('the geniuspay webhook marks the matching order as paid end to end', function () {
+    // Le paiement confirmé déclenche aussi le provisioning RouterOS :
+    // neutralise toute tentative de connexion réseau réelle.
+    MikrotikFake::fake();
+
     $order = Order::factory()->create([
         'status' => OrderStatus::Pending,
         'payment_reference' => 'PAY-123',

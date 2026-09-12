@@ -59,7 +59,20 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureViewComposers(): void
     {
-        View::composer('layouts.public', function ($view): void {
+        // Selon comment la vue est chargée, Livewire lui attribue un nom
+        // différent : #[Layout('layouts.public')] résout "layouts.public",
+        // mais <x-layouts::public> (vues Blade classiques, ex. écrans
+        // Fortify) résout un namespace haché propre au dossier
+        // (ex. "f4ac99e09542ff494432bc959d4fee61::public"), jamais
+        // "layouts::public" littéralement. On matche donc sur le chemin
+        // du fichier, seul identifiant stable dans les deux cas.
+        View::composer('*', function ($view): void {
+            $path = str_replace('\\', '/', $view->getPath());
+
+            if (! str_ends_with($path, 'resources/views/layouts/public.blade.php')) {
+                return;
+            }
+
             $zone = WifiZoneSetting::current();
 
             $view->with('wifiZoneSetting', $zone);

@@ -46,7 +46,7 @@
                     </nav>
 
                     <flux:button
-                        :href="route('login')"
+                        :href="auth('customer')->check() ? route('account.profile') : route('login')"
                         wire:navigate
                         variant="ghost"
                         size="sm"

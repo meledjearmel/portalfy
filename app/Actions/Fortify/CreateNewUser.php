@@ -19,10 +19,14 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): Customer
     {
+        $input['phone'] = preg_replace('/\D/', '', $input['phone'] ?? '');
+
         Validator::make($input, [
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(Customer::class)->whereNull('deleted_at')],
-            'phone' => ['required', 'string', 'max:255', Rule::unique(Customer::class)->whereNull('deleted_at')],
+            'phone' => ['required', 'regex:/^(01|05|07)\d{8}$/', Rule::unique(Customer::class)->whereNull('deleted_at')],
             'password' => $this->passwordRules(),
+        ], [
+            'phone.regex' => 'Entrez un numéro ivoirien valide (10 chiffres, commençant par 01, 05 ou 07).',
         ])->validate();
 
         return Customer::create([

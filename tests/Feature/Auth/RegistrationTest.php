@@ -23,7 +23,7 @@ test('new customers can register', function () {
     ]);
 
     $response->assertSessionHasNoErrors()
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('account.profile', absolute: false));
 
     $this->assertAuthenticated('customer');
 });
@@ -63,7 +63,7 @@ test('a deleted customer email and phone can be reused to register again', funct
     ]);
 
     $response->assertSessionHasNoErrors()
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('account.profile', absolute: false));
 
     $this->assertAuthenticated('customer');
     expect(auth('customer')->id())->not->toBe($deleted->id);

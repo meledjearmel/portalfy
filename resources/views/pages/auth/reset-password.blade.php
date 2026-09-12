@@ -1,54 +1,59 @@
-<x-layouts::auth :title="__('Reset password')">
-    <div class="flex flex-col gap-6">
-        <x-auth-header :title="__('Reset password')" :description="__('Please enter your new password below')" />
+<x-layouts::public :title="__('Réinitialiser le mot de passe')">
+    <div class="mx-auto flex w-full max-w-md flex-col gap-8">
+        <div class="flex flex-col items-center gap-2 text-center">
+            <flux:badge size="sm" class="glass-button">Mon compte</flux:badge>
+            <flux:heading size="xl" class="glass-text text-3xl font-extrabold">Réinitialiser le mot de passe</flux:heading>
+            <flux:text class="glass-text opacity-90">
+                Choisissez un nouveau mot de passe.
+            </flux:text>
+        </div>
 
-        <!-- Session Status -->
-        <x-auth-session-status class="text-center" :status="session('status')" />
+        <x-auth-session-status class="glass-text text-center" :status="session('status')" />
 
-        <form method="POST" action="{{ route('password.update') }}" class="flex flex-col gap-6">
+        <form method="POST" action="{{ route('password.update') }}" class="glass-card flex flex-col gap-6 p-8">
             @csrf
-            <!-- Token -->
             <input type="hidden" name="token" value="{{ request()->route('token') }}">
 
-            <!-- Email Address -->
-            <flux:input
-                name="email"
-                value="{{ request('email') }}"
-                :label="__('Email')"
-                type="email"
-                required
-                autocomplete="email"
-            />
+            <flux:field>
+                <flux:label class="glass-text">Adresse email</flux:label>
+                <flux:input
+                    name="email"
+                    value="{{ request('email') }}"
+                    type="email"
+                    required
+                    autocomplete="email"
+                />
+                <flux:error name="email" />
+            </flux:field>
 
-            <!-- Password -->
-            <flux:input
-                name="password"
-                :label="__('Password')"
-                type="password"
-                required
-                autocomplete="new-password"
-                :placeholder="__('Password')"
-                passwordrules="{{ \Illuminate\Validation\Rules\Password::defaults()->toPasswordRulesString() }}"
-                viewable
-            />
+            <flux:field>
+                <flux:label class="glass-text">Nouveau mot de passe</flux:label>
+                <flux:input
+                    name="password"
+                    type="password"
+                    required
+                    autocomplete="new-password"
+                    passwordrules="{{ \Illuminate\Validation\Rules\Password::defaults()->toPasswordRulesString() }}"
+                    viewable
+                />
+                <flux:error name="password" />
+            </flux:field>
 
-            <!-- Confirm Password -->
-            <flux:input
-                name="password_confirmation"
-                :label="__('Confirm password')"
-                type="password"
-                required
-                autocomplete="new-password"
-                :placeholder="__('Confirm password')"
-                passwordrules="{{ \Illuminate\Validation\Rules\Password::defaults()->toPasswordRulesString() }}"
-                viewable
-            />
+            <flux:field>
+                <flux:label class="glass-text">Confirmer le mot de passe</flux:label>
+                <flux:input
+                    name="password_confirmation"
+                    type="password"
+                    required
+                    autocomplete="new-password"
+                    viewable
+                />
+                <flux:error name="password_confirmation" />
+            </flux:field>
 
-            <div class="flex items-center justify-end">
-                <flux:button type="submit" variant="primary" class="w-full" data-test="reset-password-button">
-                    {{ __('Reset password') }}
-                </flux:button>
-            </div>
+            <flux:button variant="ghost" type="submit" class="glass-button w-full" data-test="reset-password-button">
+                Réinitialiser le mot de passe
+            </flux:button>
         </form>
     </div>
-</x-layouts::auth>
+</x-layouts::public>

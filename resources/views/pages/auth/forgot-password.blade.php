@@ -1,31 +1,38 @@
-<x-layouts::auth :title="__('Forgot password')">
-    <div class="flex flex-col gap-6">
-        <x-auth-header :title="__('Forgot password')" :description="__('Enter your email to receive a password reset link')" />
+<x-layouts::public :title="__('Mot de passe oublié')">
+    <div class="mx-auto flex w-full max-w-md flex-col gap-8">
+        <div class="flex flex-col items-center gap-2 text-center">
+            <flux:badge size="sm" class="glass-button">Mon compte</flux:badge>
+            <flux:heading size="xl" class="glass-text text-3xl font-extrabold">Mot de passe oublié</flux:heading>
+            <flux:text class="glass-text opacity-90">
+                Recevez un lien de réinitialisation par email.
+            </flux:text>
+        </div>
 
-        <!-- Session Status -->
-        <x-auth-session-status class="text-center" :status="session('status')" />
+        <x-auth-session-status class="glass-text text-center" :status="session('status')" />
 
-        <form method="POST" action="{{ route('password.email') }}" class="flex flex-col gap-6">
+        <form method="POST" action="{{ route('password.email') }}" class="glass-card flex flex-col gap-6 p-8">
             @csrf
 
-            <!-- Email Address -->
-            <flux:input
-                name="email"
-                :label="__('Email address')"
-                type="email"
-                required
-                autofocus
-                placeholder="email@example.com"
-            />
+            <flux:field>
+                <flux:label class="glass-text">Adresse email</flux:label>
+                <flux:input
+                    name="email"
+                    type="email"
+                    required
+                    autofocus
+                    placeholder="vous@exemple.com"
+                />
+                <flux:error name="email" />
+            </flux:field>
 
-            <flux:button variant="primary" type="submit" class="w-full" data-test="email-password-reset-link-button">
-                {{ __('Email password reset link') }}
+            <flux:button variant="ghost" type="submit" class="glass-button w-full" data-test="email-password-reset-link-button">
+                Envoyer le lien de réinitialisation
             </flux:button>
         </form>
 
-        <div class="space-x-1 rtl:space-x-reverse text-center text-sm text-zinc-400">
-            <span>{{ __('Or, return to') }}</span>
-            <flux:link :href="route('login')" wire:navigate>{{ __('log in') }}</flux:link>
+        <div class="glass-text text-center text-sm opacity-90">
+            <span>Ou revenez à la</span>
+            <flux:link :href="route('login')" wire:navigate class="glass-text underline">connexion</flux:link>
         </div>
     </div>
-</x-layouts::auth>
+</x-layouts::public>

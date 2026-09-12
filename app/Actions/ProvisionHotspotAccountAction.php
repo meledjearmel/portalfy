@@ -43,25 +43,32 @@ class ProvisionHotspotAccountAction
             $data['rate-limit'] = "{$package->max_speed_mbps}M/{$package->max_speed_mbps}M";
         }
 
+        // Les deux étapes sont couvertes par le même catch(\Throwable) : la
+        // validation MikroTik (ValidationException étend InvalidArgumentException,
+        // pas RuntimeException) et une collision improbable sur le code unique
+        // (QueryException) doivent toutes deux respecter le contrat "ne lève
+        // jamais d'exception" de cette méthode, même quand elles surviennent
+        // après que le compte RouterOS a déjà été créé côté routeur.
         try {
             MikroTik::hotspot()->createUser($data);
-        } catch (\RuntimeException $e) {
+
+            $account = HotspotAccount::create([
+                'order_id' => $order->id,
+                'code' => $code,
+                'secret' => $secret,
+                'status' => HotspotAccountStatus::Active,
+                'activated_at' => now(),
+                'expires_at' => now()->addMinutes($package->duration_minutes),
+            ]);
+        } catch (\Throwable $e) {
             Log::error('RouterOS: échec de provisioning du compte Hotspot', [
                 'order_id' => $order->id,
+                'code' => $code,
                 'error' => $e->getMessage(),
             ]);
 
             return null;
         }
-
-        $account = HotspotAccount::create([
-            'order_id' => $order->id,
-            'code' => $code,
-            'secret' => $secret,
-            'status' => HotspotAccountStatus::Active,
-            'activated_at' => now(),
-            'expires_at' => now()->addMinutes($package->duration_minutes),
-        ]);
 
         HotspotAccountProvisioned::dispatch($account);
 

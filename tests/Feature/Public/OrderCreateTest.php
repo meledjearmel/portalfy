@@ -96,5 +96,5 @@ test('a failure to reach the payment gateway shows a clear error and does not le
         ->call('pay')
         ->assertHasErrors('phone');
 
-    expect(Order::query()->count())->toBe(0);
+    expect(Order::query()->withTrashed()->count())->toBe(0);
 });

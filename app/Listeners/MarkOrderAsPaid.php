@@ -3,45 +3,40 @@
 namespace App\Listeners;
 
 use App\Enums\OrderStatus;
+use App\Listeners\Concerns\FindsOrderByPaymentReference;
 use App\Models\Invoice;
-use App\Models\Order;
 use GeniusPay\Laravel\Events\PaymentCompleted;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class MarkOrderAsPaid
 {
+    use FindsOrderByPaymentReference;
+
     /**
      * Handle the event.
+     *
+     * Le provisioning RouterOS (génération du code d'accès) et la diffusion
+     * temps réel Reverb sont branchés séparément par leurs propres listeners
+     * une fois ces étapes construites.
      */
     public function handle(PaymentCompleted $event): void
     {
-        $order = Order::query()->where('payment_reference', $event->getReference())->first();
+        $order = $this->findOrder($event->getReference());
 
-        if (! $order) {
-            Log::warning('GeniusPay: paiement complété pour une commande introuvable', [
-                'reference' => $event->getReference(),
-            ]);
-
-            return;
-        }
-
-        if ($order->status === OrderStatus::Paid) {
+        if (! $order || $order->status === OrderStatus::Paid) {
             return;
         }
 
         $order->update(['status' => OrderStatus::Paid]);
 
         if ($order->customer_id && ! $order->invoice) {
-            Invoice::create([
-                'order_id' => $order->id,
-                'number' => (Invoice::query()->max('number') ?? 0) + 1,
-                'amount' => $order->amount,
-            ]);
+            Cache::lock('invoice-number-generation', 10)->block(5, function () use ($order) {
+                Invoice::create([
+                    'order_id' => $order->id,
+                    'number' => (Invoice::query()->max('number') ?? 0) + 1,
+                    'amount' => $order->amount,
+                ]);
+            });
         }
-
-        // TODO étape 6 : ProvisionHotspotAccountAction (génération du code,
-        // création du compte RouterOS selon credential_mode).
-        // TODO étape 7 : diffuser un event Reverb sur le channel privé de
-        // la commande pour afficher le code en temps réel.
     }
 }

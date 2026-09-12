@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Vite;
 
 /**
  * @property int $id
@@ -77,6 +76,6 @@ class WifiZoneSetting extends Model
     {
         return Attribute::get(fn (): string => $this->background_path
             ? Storage::url($this->background_path)
-            : Vite::asset('resources/images/hero-background.jpg'));
+            : asset('images/hero-background.jpg'));
     }
 }

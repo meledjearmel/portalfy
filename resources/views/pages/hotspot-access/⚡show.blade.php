@@ -2,6 +2,7 @@
 
 use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -21,7 +22,7 @@ new #[Layout('layouts.public')] #[Title("J'ai déjà un code")] class extends Co
         $this->account = null;
 
         $account = HotspotAccount::query()
-            ->where('code', trim($this->code))
+            ->where('code', Str::upper(trim($this->code)))
             ->first();
 
         if (! $account) {

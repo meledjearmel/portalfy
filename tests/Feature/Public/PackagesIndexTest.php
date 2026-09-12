@@ -22,3 +22,9 @@ test('a package shows its duration in a human-readable label', function () {
     $response->assertOk();
     $response->assertSee('1 jour');
 });
+
+test('a package with a zero-minute duration does not render a nonsensical label', function () {
+    $package = Package::factory()->create(['duration_minutes' => 0]);
+
+    expect($package->duration_label)->toBe('0 minute');
+});

@@ -66,6 +66,7 @@ class Package extends Model
             $minutes = $this->duration_minutes;
 
             return match (true) {
+                $minutes === 0 => self::pluralize(0, 'minute', 'minutes'),
                 $minutes % 43200 === 0 => self::pluralize((int) ($minutes / 43200), 'mois', 'mois'),
                 $minutes % 10080 === 0 => self::pluralize((int) ($minutes / 10080), 'semaine', 'semaines'),
                 $minutes % 1440 === 0 => self::pluralize((int) ($minutes / 1440), 'jour', 'jours'),

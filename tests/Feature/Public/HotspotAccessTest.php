@@ -54,3 +54,16 @@ test('an active code is accepted and shown to the customer', function () {
         ->assertHasNoErrors()
         ->assertSee($account->code);
 });
+
+test('a code typed in lowercase is still accepted', function () {
+    $account = HotspotAccount::factory()->create([
+        'status' => HotspotAccountStatus::Active,
+        'code' => 'ABC123',
+    ]);
+
+    Livewire::test('pages::hotspot-access.show')
+        ->set('code', 'abc123')
+        ->call('verify')
+        ->assertHasNoErrors()
+        ->assertSee($account->code);
+});

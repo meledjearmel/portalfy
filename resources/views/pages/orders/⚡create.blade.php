@@ -48,7 +48,7 @@ new #[Layout('layouts.public')] #[Title('Récapitulatif')] class extends Compone
         try {
             $initiation = $gateway->createPayment($order);
         } catch (GeniusPayException $e) {
-            $order->delete();
+            $order->forceDelete();
 
             $this->addError('phone', "Impossible de démarrer le paiement pour le moment. Réessayez dans quelques instants.");
 

@@ -33,7 +33,7 @@ return [
     | de modifier cette valeur.
     |
     */
-    'base_url' => env('GENIUSPAY_BASE_URL', 'https://pay.geniuspay.io/api/v1/merchant'),
+    'base_url' => env('GENIUSPAY_BASE_URL', 'https://pay.genius.ci/api/v1/merchant'),
 
     /*
     |--------------------------------------------------------------------------

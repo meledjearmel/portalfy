@@ -28,6 +28,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return $guard === 'customer' ? route('login') : route('admin.login');
         });
+
+        // GeniusPay ne connaît pas notre jeton CSRF : cette route reçoit ses
+        // webhooks (voir GeniusPayWebhookController), authentifiés par
+        // signature HMAC, pas par session.
+        $middleware->preventRequestForgery(except: [
+            'webhooks/geniuspay',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

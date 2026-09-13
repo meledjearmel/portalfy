@@ -92,8 +92,7 @@ new #[Layout('layouts.public')] #[Title('Récapitulatif')] class extends Compone
                     type="tel"
                     inputmode="numeric"
                     wire:model="phone"
-                    placeholder="07 00 00 00 00"
-                    x-mask="'99 99 99 99 99'"
+                    placeholder="0700000000"
                     class="text-center"
                 />
                 <flux:error name="phone" />

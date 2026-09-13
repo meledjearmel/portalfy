@@ -60,7 +60,8 @@ new #[Layout('layouts.public')] #[Title('Récapitulatif')] class extends Compone
             'payment_reference' => $initiation->reference,
         ]);
 
-        $this->redirect($initiation->checkoutUrl);
+        // URL externe (GeniusPay) : navigation classique, jamais via wire:navigate.
+        $this->redirect($initiation->checkoutUrl, navigate: false);
     }
 };
 ?>

@@ -7,6 +7,7 @@ use App\Models\Package;
 use Flux\Flux;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -17,11 +18,19 @@ new #[Title('Comptes Hotspot')] class extends Component
 {
     use WithPagination;
 
+    #[Url]
+    public string $search = '';
+
     #[Validate('required|exists:packages,id')]
     public ?int $voucherPackageId = null;
 
     #[Validate('required|integer|min:1|max:50')]
     public int $voucherQuantity = 1;
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
 
     /**
      * Ouvre le formulaire de génération de vouchers, réinitialisé à chaque
@@ -186,6 +195,16 @@ new #[Title('Comptes Hotspot')] class extends Component
         return [
             'accounts' => HotspotAccount::query()
                 ->with(['package', 'order.customer'])
+                ->when($this->search !== '', function ($query) {
+                    $term = "%{$this->search}%";
+
+                    $query->where(function ($inner) use ($term) {
+                        $inner->where('code', 'like', $term)
+                            ->orWhereHas('package', fn ($q) => $q->where('name', 'like', $term))
+                            ->orWhereHas('order', fn ($q) => $q->where('phone', 'like', $term)
+                                ->orWhereHas('customer', fn ($cq) => $cq->where('email', 'like', $term)));
+                    });
+                })
                 ->latest()
                 ->paginate(15),
             'packages' => Package::query()->active()->ordered()->get(),
@@ -197,11 +216,16 @@ new #[Title('Comptes Hotspot')] class extends Component
 <div class="flex flex-col gap-6">
     <div class="flex items-center justify-between gap-4">
         <flux:heading size="xl">Comptes Hotspot</flux:heading>
-        <flux:button variant="primary" wire:click="openVoucherModal">Générer des vouchers</flux:button>
+        <div class="flex gap-2">
+            <flux:input wire:model.live.debounce.300ms="search" placeholder="Rechercher par code, forfait, email ou téléphone..." class="max-w-xs" icon="magnifying-glass" />
+            <flux:button variant="primary" wire:click="openVoucherModal">Générer des vouchers</flux:button>
+        </div>
     </div>
 
     @if ($accounts->isEmpty())
-        <flux:text class="text-zinc-500">Aucun compte Hotspot pour le moment.</flux:text>
+        <flux:text class="text-zinc-500">
+            {{ $search !== '' ? 'Aucun compte Hotspot ne correspond à cette recherche.' : 'Aucun compte Hotspot pour le moment.' }}
+        </flux:text>
     @else
         <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
             <table class="w-full text-sm">

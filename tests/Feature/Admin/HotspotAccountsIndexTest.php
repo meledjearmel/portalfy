@@ -1,7 +1,9 @@
 <?php
 
 use App\Enums\HotspotAccountStatus;
+use App\Models\Customer;
 use App\Models\HotspotAccount;
+use App\Models\Order;
 use App\Models\Package;
 use App\Models\RouterSetting;
 use App\Models\User;
@@ -35,6 +37,49 @@ test('an admin sees the hotspot accounts list', function () {
 
     $response->assertOk();
     $response->assertSee($account->code);
+});
+
+test('the search narrows accounts down by code', function () {
+    $matching = HotspotAccount::factory()->create(['code' => 'FINDME']);
+    $other = HotspotAccount::factory()->create(['code' => 'OTHER1']);
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->set('search', 'findme')
+        ->assertSee($matching->code)
+        ->assertDontSee($other->code);
+});
+
+test('the search narrows accounts down by package name', function () {
+    $package = Package::factory()->create(['name' => 'Forfait Journalier Unique']);
+    $matching = HotspotAccount::factory()->voucher()->create(['package_id' => $package->id, 'code' => 'ABCDEF']);
+    $other = HotspotAccount::factory()->create(['code' => 'ZYXWVU']);
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->set('search', 'Journalier')
+        ->assertSee($matching->code)
+        ->assertDontSee($other->code);
+});
+
+test('the search narrows accounts down by the linked customer email or order phone', function () {
+    $customer = Customer::factory()->create(['email' => 'alice@example.com']);
+    $order = Order::factory()->paid()->create(['customer_id' => $customer->id, 'phone' => '0711111111']);
+    $matching = HotspotAccount::factory()->create(['order_id' => $order->id, 'code' => 'ABCDEF']);
+
+    $otherOrder = Order::factory()->paid()->create(['phone' => '0722222222']);
+    $other = HotspotAccount::factory()->create(['order_id' => $otherOrder->id, 'code' => 'ZYXWVU']);
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->set('search', 'alice')
+        ->assertSee($matching->code)
+        ->assertDontSee($other->code);
+});
+
+test('a search matching nothing shows a search-specific empty state', function () {
+    HotspotAccount::factory()->create();
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->set('search', 'no-such-code')
+        ->assertSee('Aucun compte Hotspot ne correspond à cette recherche.');
 });
 
 test('an admin can suspend an active account, disabling it and kicking its active session on RouterOS', function () {

@@ -24,6 +24,7 @@ Route::prefix('admin')->middleware(['auth:web'])->name('admin.')->group(function
         Route::livewire('/comptes-hotspot', 'pages::admin.hotspot-accounts.index')->name('hotspot-accounts.index');
         Route::livewire('/forfaits', 'pages::admin.packages.index')->name('packages.index');
         Route::livewire('/clients', 'pages::admin.customers.index')->name('customers.index');
+        Route::livewire('/clients/{customer}', 'pages::admin.customers.show')->name('customers.show');
         Route::livewire('/corbeille', 'pages::admin.trash.index')->name('trash.index');
         Route::livewire('/parametres', 'pages::admin.settings.edit')->name('settings.edit');
     });

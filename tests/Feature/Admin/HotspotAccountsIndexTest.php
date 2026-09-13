@@ -2,6 +2,7 @@
 
 use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
+use App\Models\RouterSetting;
 use App\Models\User;
 use Livewire\Livewire;
 use ZillEAli\MikrotikLaravel\Exceptions\ApiException;
@@ -9,6 +10,9 @@ use ZillEAli\MikrotikLaravel\Exceptions\ResourceNotFoundException;
 use ZillEAli\MikrotikLaravel\Facades\MikroTik;
 use ZillEAli\MikrotikLaravel\Services\HotspotManager;
 use ZillEAli\MikrotikLaravel\Testing\MikrotikFake;
+
+// La liste des comptes Hotspot est derrière EnsureRouterIsConfigured.
+beforeEach(fn () => RouterSetting::factory()->create());
 
 // Chaque `MikrotikFake::fake(['/ip/hotspot/user/print' => [...]])` ci-dessous
 // fournit une ligne minimale pour que `HotspotManager` trouve un utilisateur

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\PaymentGatewayContract;
+use App\Models\RouterSetting;
 use App\Models\WifiZoneSetting;
 use App\Services\GeniusPayGateway;
 use Carbon\CarbonImmutable;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use ZillEAli\MikrotikLaravel\MikrotikManager;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureViewComposers();
+        $this->configureMikrotikConnection();
     }
 
     /**
@@ -80,6 +83,26 @@ class AppServiceProvider extends ServiceProvider
             // La barre de progression wire:navigate reprend la couleur
             // primaire choisie par l'admin, jamais une valeur codée en dur.
             config(['livewire.navigate.progress_bar_color' => $zone->color_primary]);
+        });
+    }
+
+    /**
+     * Fait passer la connexion RouterOS de la config statique (mikrotik.php,
+     * donc .env) à la configuration enregistrée par l'admin (RouterSetting) :
+     * on ré-enregistre le binding singleton de mikrotik-laravel après lui,
+     * plutôt que de le forker, pour continuer à bénéficier du reste de sa
+     * config (retry, timeouts socket...). Le rebind est un simple remplacement
+     * de closure — sans effet tant qu'aucun code n'a encore résolu
+     * MikrotikManager depuis le conteneur, ce qui n'arrive jamais avant la fin
+     * du boot() de tous les providers.
+     */
+    protected function configureMikrotikConnection(): void
+    {
+        $this->app->singleton(MikrotikManager::class, function ($app) {
+            return new MikrotikManager([
+                ...$app['config']['mikrotik'],
+                ...RouterSetting::current()->toMikrotikConfig(),
+            ]);
         });
     }
 }

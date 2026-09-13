@@ -24,6 +24,9 @@
                     <flux:sidebar.item icon="wifi" :href="route('admin.hotspot-accounts.index')" :current="request()->routeIs('admin.hotspot-accounts.index')" wire:navigate>
                         Comptes Hotspot
                     </flux:sidebar.item>
+                    <flux:sidebar.item icon="server" :href="route('admin.router.index')" :current="request()->routeIs('admin.router.index')" wire:navigate>
+                        Routeur
+                    </flux:sidebar.item>
                     <flux:sidebar.item icon="users" :href="route('admin.customers.index')" :current="request()->routeIs('admin.customers.index')" wire:navigate>
                         Clients
                     </flux:sidebar.item>

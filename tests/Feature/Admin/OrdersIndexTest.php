@@ -3,8 +3,12 @@
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Package;
+use App\Models\RouterSetting;
 use App\Models\User;
 use Livewire\Livewire;
+
+// La liste des commandes est derrière EnsureRouterIsConfigured.
+beforeEach(fn () => RouterSetting::factory()->create());
 
 test('guests are redirected to the admin login screen', function () {
     $response = $this->get(route('admin.orders.index'));

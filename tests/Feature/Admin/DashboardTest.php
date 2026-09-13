@@ -2,7 +2,13 @@
 
 use App\Models\HotspotAccount;
 use App\Models\Order;
+use App\Models\RouterSetting;
 use App\Models\User;
+
+// Le tableau de bord est derrière EnsureRouterIsConfigured : sans routeur
+// enregistré, un admin authentifié serait redirigé vers l'écran Routeur
+// avant même d'atteindre cette page.
+beforeEach(fn () => RouterSetting::factory()->create());
 
 test('guests are redirected to the admin login screen', function () {
     $response = $this->get(route('admin.dashboard'));

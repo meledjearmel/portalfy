@@ -1,11 +1,15 @@
 <?php
 
 use App\Enums\CredentialMode;
+use App\Models\RouterSetting;
 use App\Models\User;
 use App\Models\WifiZoneSetting;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+
+// Les paramètres de la zone WiFi sont derrière EnsureRouterIsConfigured.
+beforeEach(fn () => RouterSetting::factory()->create());
 
 test('guests are redirected to the admin login screen', function () {
     $response = $this->get(route('admin.settings.edit'));

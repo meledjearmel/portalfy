@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
 use App\Models\Order;
+use App\Models\Package;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -22,12 +23,24 @@ class HotspotAccountFactory extends Factory
     {
         return [
             'order_id' => Order::factory()->paid(),
+            'package_id' => fn (array $attributes) => Order::find($attributes['order_id'])->package_id,
             'code' => Str::upper(Str::random(6)),
             'secret' => null,
             'status' => HotspotAccountStatus::Active,
             'activated_at' => now(),
             'expires_at' => now()->addDay(),
         ];
+    }
+
+    /**
+     * Indique un voucher généré par l'admin, sans commande associée.
+     */
+    public function voucher(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'order_id' => null,
+            'package_id' => Package::factory(),
+        ]);
     }
 
     /**

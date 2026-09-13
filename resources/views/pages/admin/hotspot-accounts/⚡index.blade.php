@@ -1,10 +1,13 @@
 <?php
 
+use App\Actions\CreateHotspotAccountAction;
 use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
+use App\Models\Package;
 use Flux\Flux;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Validate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use ZillEAli\MikrotikLaravel\Exceptions\ResourceNotFoundException;
@@ -13,6 +16,75 @@ use ZillEAli\MikrotikLaravel\Facades\MikroTik;
 new #[Title('Comptes Hotspot')] class extends Component
 {
     use WithPagination;
+
+    #[Validate('required|exists:packages,id')]
+    public ?int $voucherPackageId = null;
+
+    #[Validate('required|integer|min:1|max:50')]
+    public int $voucherQuantity = 1;
+
+    /**
+     * Ouvre le formulaire de génération de vouchers, réinitialisé à chaque
+     * ouverture pour ne jamais reproposer la sélection de la fois précédente.
+     */
+    public function openVoucherModal(): void
+    {
+        $this->reset(['voucherPackageId', 'voucherQuantity']);
+        $this->voucherQuantity = 1;
+
+        Flux::modal('voucher-form')->show();
+    }
+
+    /**
+     * Génère N comptes Hotspot pour le forfait choisi, sans commande associée
+     * (voir CreateHotspotAccountAction) : chaque échec RouterOS individuel est
+     * absorbé (le compte concerné est simplement absent du lot), le reste de
+     * la génération continue plutôt que d'abandonner tout le lot.
+     */
+    public function generateVouchers(): void
+    {
+        $this->validate();
+
+        $package = Package::findOrFail($this->voucherPackageId);
+        $action = new CreateHotspotAccountAction;
+
+        $created = 0;
+
+        for ($i = 0; $i < $this->voucherQuantity; $i++) {
+            if ($action->handle($package)) {
+                $created++;
+            }
+        }
+
+        Flux::modal('voucher-form')->close();
+
+        if ($created === $this->voucherQuantity) {
+            Flux::toast(variant: 'success', text: "{$created} voucher(s) généré(s).");
+
+            return;
+        }
+
+        if ($created > 0) {
+            Flux::toast(variant: 'warning', text: "{$created} sur {$this->voucherQuantity} voucher(s) généré(s), le routeur a refusé les autres.");
+
+            return;
+        }
+
+        Flux::toast(variant: 'danger', text: "Impossible de contacter le routeur pour l'instant. Réessayez dans un instant.");
+    }
+
+    /**
+     * Corbeille (soft delete), pas de suppression définitive ici : le compte
+     * reste restaurable depuis l'écran Corbeille, comme les Forfaits et les
+     * Clients. Ne touche jamais RouterOS — un compte supprimé ici doit
+     * d'abord être suspendu si son accès réseau doit être coupé.
+     */
+    public function delete(HotspotAccount $account): void
+    {
+        $account->delete();
+
+        Flux::toast(variant: 'success', text: 'Compte déplacé dans la corbeille.');
+    }
 
     /**
      * Désactive le compte sur RouterOS et coupe immédiatement une éventuelle
@@ -75,10 +147,10 @@ new #[Title('Comptes Hotspot')] class extends Component
      */
     public function extend(HotspotAccount $account): void
     {
-        $account->loadMissing('order.package');
+        $account->loadMissing('package');
 
         $base = $account->expires_at?->isFuture() ? $account->expires_at : now();
-        $newExpiresAt = $base->copy()->addMinutes($account->order->package->duration_minutes);
+        $newExpiresAt = $base->copy()->addMinutes($account->package->duration_minutes);
 
         $activatedAt = $account->activated_at ?? $account->created_at;
         $limitUptimeSeconds = $activatedAt->diffInSeconds($newExpiresAt);
@@ -113,16 +185,20 @@ new #[Title('Comptes Hotspot')] class extends Component
     {
         return [
             'accounts' => HotspotAccount::query()
-                ->with(['order.package', 'order.customer'])
+                ->with(['package', 'order.customer'])
                 ->latest()
                 ->paginate(15),
+            'packages' => Package::query()->active()->ordered()->get(),
         ];
     }
 };
 ?>
 
 <div class="flex flex-col gap-6">
-    <flux:heading size="xl">Comptes Hotspot</flux:heading>
+    <div class="flex items-center justify-between gap-4">
+        <flux:heading size="xl">Comptes Hotspot</flux:heading>
+        <flux:button variant="primary" wire:click="openVoucherModal">Générer des vouchers</flux:button>
+    </div>
 
     @if ($accounts->isEmpty())
         <flux:text class="text-zinc-500">Aucun compte Hotspot pour le moment.</flux:text>
@@ -133,7 +209,7 @@ new #[Title('Comptes Hotspot')] class extends Component
                     <tr>
                         <th class="px-4 py-3 text-start font-medium text-zinc-500">Code</th>
                         <th class="px-4 py-3 text-start font-medium text-zinc-500">Forfait</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Client</th>
+                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Origine</th>
                         <th class="px-4 py-3 text-start font-medium text-zinc-500">Statut</th>
                         <th class="px-4 py-3 text-start font-medium text-zinc-500">Expire le</th>
                         <th class="px-4 py-3 text-start font-medium text-zinc-500">Actions</th>
@@ -143,8 +219,14 @@ new #[Title('Comptes Hotspot')] class extends Component
                     @foreach ($accounts as $account)
                         <tr wire:key="account-{{ $account->id }}">
                             <td class="px-4 py-3 font-mono">{{ $account->code }}</td>
-                            <td class="px-4 py-3">{{ $account->order->package->name }}</td>
-                            <td class="px-4 py-3">{{ $account->order->customer?->email ?? $account->order->phone }}</td>
+                            <td class="px-4 py-3">{{ $account->package?->name ?? '—' }}</td>
+                            <td class="px-4 py-3">
+                                @if ($account->isVoucher())
+                                    <flux:badge color="zinc" size="sm">Voucher</flux:badge>
+                                @else
+                                    {{ $account->order->customer?->email ?? $account->order->phone }}
+                                @endif
+                            </td>
                             <td class="px-4 py-3">
                                 <flux:badge :color="$account->status->color()" size="sm">
                                     {{ $account->status->label() }}
@@ -168,6 +250,15 @@ new #[Title('Comptes Hotspot')] class extends Component
                                             Suspendre
                                         </flux:button>
                                     @endif
+
+                                    <flux:button
+                                        size="sm"
+                                        variant="ghost"
+                                        wire:click="delete({{ $account->id }})"
+                                        wire:confirm="Déplacer ce compte dans la corbeille ?"
+                                    >
+                                        Supprimer
+                                    </flux:button>
                                 </div>
                             </td>
                         </tr>
@@ -178,4 +269,34 @@ new #[Title('Comptes Hotspot')] class extends Component
 
         {{ $accounts->links() }}
     @endif
+
+    <flux:modal name="voucher-form" class="max-w-lg">
+        <form wire:submit="generateVouchers" class="flex flex-col gap-6">
+            <flux:heading size="lg">Générer des vouchers</flux:heading>
+
+            <flux:field>
+                <flux:label>Forfait</flux:label>
+                <flux:select wire:model="voucherPackageId">
+                    <flux:select.option value="">Choisir un forfait</flux:select.option>
+                    @foreach ($packages as $package)
+                        <flux:select.option value="{{ $package->id }}">{{ $package->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="voucherPackageId" />
+            </flux:field>
+
+            <flux:field>
+                <flux:label>Nombre de vouchers</flux:label>
+                <flux:input type="number" wire:model="voucherQuantity" min="1" max="50" />
+                <flux:error name="voucherQuantity" />
+            </flux:field>
+
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Annuler</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">Générer</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 </div>

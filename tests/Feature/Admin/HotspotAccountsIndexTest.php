@@ -2,6 +2,7 @@
 
 use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
+use App\Models\Package;
 use App\Models\RouterSetting;
 use App\Models\User;
 use Livewire\Livewire;
@@ -223,4 +224,102 @@ test('a missing hotspot user on the router blocks suspension instead of silently
         ->call('suspend', $account->id);
 
     expect($account->fresh()->status)->toBe(HotspotAccountStatus::Active);
+});
+
+test('an admin can generate vouchers for a package, without any order', function () {
+    $fake = MikrotikFake::fake();
+    $package = Package::factory()->create();
+
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->set('voucherPackageId', $package->id)
+        ->set('voucherQuantity', 3)
+        ->call('generateVouchers')
+        ->assertHasNoErrors();
+
+    // Un compte créé = une commande /add (le forfait peut aussi déclencher
+    // des commandes de profil de vitesse, voir CreateHotspotAccountActionTest).
+    $userAddCount = count(array_filter(
+        $fake->recordedQueries(),
+        fn (string $command) => $command === '/ip/hotspot/user/add',
+    ));
+    expect($userAddCount)->toBe(3);
+
+    $vouchers = HotspotAccount::query()->whereNull('order_id')->get();
+    expect($vouchers)->toHaveCount(3);
+    expect($vouchers->every(fn ($v) => $v->package_id === $package->id))->toBeTrue();
+});
+
+test('generating vouchers requires a package and a valid quantity', function () {
+    MikrotikFake::fake();
+
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->set('voucherPackageId', null)
+        ->set('voucherQuantity', 0)
+        ->call('generateVouchers')
+        ->assertHasErrors(['voucherPackageId', 'voucherQuantity']);
+
+    expect(HotspotAccount::query()->count())->toBe(0);
+});
+
+test('a partial router failure still keeps the vouchers that were created', function () {
+    // Le premier createUser réussit, le second échoue : la génération ne
+    // doit pas être tout-ou-rien, contrairement à une transaction classique.
+    $manager = Mockery::mock(HotspotManager::class);
+    $manager->shouldReceive('createUser')->once();
+    $manager->shouldReceive('createUser')->andThrow(new ApiException('Router unreachable'));
+
+    MikroTik::shouldReceive('hotspot')->andReturn($manager);
+
+    // Pas de limite de débit ici : évite d'avoir aussi à stubber
+    // getProfiles()/createProfile() sur ce mock, hors sujet de ce test.
+    $package = Package::factory()->create(['max_speed_mbps' => null]);
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->set('voucherPackageId', $package->id)
+        ->set('voucherQuantity', 2)
+        ->call('generateVouchers');
+
+    expect(HotspotAccount::query()->count())->toBe(1);
+});
+
+test('an admin can move a hotspot account to the trash', function () {
+    $account = HotspotAccount::factory()->create();
+
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->call('delete', $account->id);
+
+    expect(HotspotAccount::query()->find($account->id))->toBeNull()
+        ->and(HotspotAccount::withTrashed()->find($account->id))->not->toBeNull();
+});
+
+test('extending a voucher uses its own package, since it has no order', function () {
+    $fake = MikrotikFake::fake(['/ip/hotspot/user/print' => [['.id' => '*1', 'name' => 'ABC123']]]);
+
+    $package = Package::factory()->create(['duration_minutes' => 120]);
+    $account = HotspotAccount::factory()->voucher()->create([
+        'package_id' => $package->id,
+        'expires_at' => now()->addHour(),
+    ]);
+
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->call('extend', $account->id);
+
+    $fake->assertQueried('/ip/hotspot/user/set');
+
+    expect($account->fresh()->expires_at->timestamp)
+        ->toBe($account->expires_at->copy()->addMinutes(120)->timestamp);
 });

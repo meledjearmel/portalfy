@@ -30,6 +30,9 @@ function fakeReachableRouter(): MikrotikFake
         '/ip/hotspot/active/print' => [
             ['.id' => '*A1', 'user' => 'ABC123', 'address' => '192.168.88.50', 'mac-address' => 'AA:BB:CC:DD:EE:FF', 'uptime' => '5m'],
         ],
+        '/ip/hotspot/user/profile/print' => [
+            ['.id' => '*P1', 'name' => 'portalfy-5M', 'rate-limit' => '5M/5M', 'shared-users' => '1'],
+        ],
     ]);
 }
 
@@ -53,6 +56,7 @@ test('an admin sees the router status, its interfaces and its active hotspot ses
     $response->assertSee('ether1');
     $response->assertSee('ABC123');
     $response->assertSee('192.168.88.50');
+    $response->assertSee('portalfy-5M');
 });
 
 test('an admin can disconnect an active hotspot session from the router view', function () {
@@ -194,6 +198,82 @@ test('testing the connection requires a host and a username, without attempting 
     // ligne singleton reste donc vide (simplement créée par with() au montage).
     expect(RouterSetting::current()->isConfigured())->toBeFalse();
 });
+
+test('an admin can create a hotspot profile', function () {
+    $fake = fakeReachableRouter();
+
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::admin.router.index')
+        ->set('profileName', 'portalfy-10M')
+        ->set('profileRateLimit', '10M/10M')
+        ->set('profileSharedUsers', 2)
+        ->set('profileSessionTimeout', '1h')
+        ->call('createHotspotProfile')
+        ->assertHasNoErrors();
+
+    $fake->assertQueried('/ip/hotspot/user/profile/add');
+});
+
+test('creating a hotspot profile requires a name', function () {
+    fakeReachableRouter();
+
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::admin.router.index')
+        ->set('profileName', '')
+        ->call('createHotspotProfile')
+        ->assertHasErrors('profileName');
+});
+
+test('creating a hotspot profile validates the rate-limit and session-timeout formats', function () {
+    fakeReachableRouter();
+
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::admin.router.index')
+        ->set('profileName', 'portalfy-test')
+        ->set('profileRateLimit', 'not-a-rate')
+        ->set('profileSessionTimeout', 'not-a-duration')
+        ->call('createHotspotProfile')
+        ->assertHasErrors(['profileRateLimit', 'profileSessionTimeout']);
+});
+
+test('creating a hotspot profile reports failure without throwing when the router is unreachable', function () {
+    MikroTik::shouldReceive('system')->andReturnUsing(function () {
+        $manager = Mockery::mock(SystemManager::class);
+        $manager->shouldReceive('getIdentity')->andReturn('MonRouteur');
+        $manager->shouldReceive('getResources')->andReturn([]);
+
+        return $manager;
+    });
+
+    MikroTik::shouldReceive('interfaces')->andReturnUsing(function () {
+        $manager = Mockery::mock(InterfaceManager::class);
+        $manager->shouldReceive('getInterfaces')->andReturn([]);
+
+        return $manager;
+    });
+
+    MikroTik::shouldReceive('hotspot')->andReturnUsing(function () {
+        $manager = Mockery::mock(HotspotManager::class);
+        $manager->shouldReceive('getActiveHosts')->andReturn([]);
+        $manager->shouldReceive('getProfiles')->andReturn([]);
+        $manager->shouldReceive('createProfile')->andThrow(new ApiException('Router unreachable'));
+
+        return $manager;
+    });
+
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::admin.router.index')
+        ->set('profileName', 'portalfy-test')
+        ->call('createHotspotProfile');
+})->throwsNoExceptions();
 
 test('an unreachable router shows an offline notice instead of crashing the page', function () {
     RouterSetting::factory()->create();

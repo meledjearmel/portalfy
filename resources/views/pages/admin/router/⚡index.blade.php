@@ -5,30 +5,103 @@ use Flux\Flux;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
 use Livewire\Attributes\Title;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 use ZillEAli\MikrotikLaravel\Facades\MikroTik;
 use ZillEAli\MikrotikLaravel\MikrotikManager;
 
 new #[Title('Routeur')] class extends Component
 {
-    #[Validate('required|string|max:255')]
+    /**
+     * Deux formulaires indépendants cohabitent sur cet écran (connexion au
+     * routeur et création de profil Hotspot) : chaque action valide
+     * explicitement son propre sous-ensemble de champs plutôt que d'appeler
+     * `$this->validate()` sans arguments, qui validerait aussi les champs de
+     * l'AUTRE formulaire (non pertinents, et souvent vides) à chaque fois.
+     */
+    private const CONNECTION_RULES = [
+        'host' => 'required|string|max:255',
+        'port' => 'required|integer|min:1|max:65535',
+        'username' => 'required|string|max:255',
+        'password' => 'nullable|string|max:255',
+        'timeout' => 'required|integer|min:1|max:120',
+        'use_ssl' => 'boolean',
+    ];
+
+    private const PROFILE_RULES = [
+        'profileName' => 'required|string|max:255',
+        'profileRateLimit' => 'nullable|regex:/^\d+[kKmMgG]?\/\d+[kKmMgG]?$/',
+        'profileSharedUsers' => 'required|integer|min:1|max:999',
+        'profileSessionTimeout' => 'nullable|regex:/^(\d+[wdhms])+$/',
+    ];
+
     public string $host = '';
 
-    #[Validate('required|integer|min:1|max:65535')]
     public ?int $port = null;
 
-    #[Validate('required|string|max:255')]
     public string $username = '';
 
-    #[Validate('nullable|string|max:255')]
     public string $password = '';
 
-    #[Validate('required|integer|min:1|max:120')]
     public int $timeout = 10;
 
-    #[Validate('boolean')]
     public bool $use_ssl = false;
+
+    public string $profileName = '';
+
+    public string $profileRateLimit = '';
+
+    public int $profileSharedUsers = 1;
+
+    public string $profileSessionTimeout = '';
+
+    /**
+     * Ouvre le formulaire de création de profil Hotspot, réinitialisé à
+     * chaque ouverture.
+     */
+    public function openProfileModal(): void
+    {
+        $this->reset(['profileName', 'profileRateLimit', 'profileSessionTimeout']);
+        $this->profileSharedUsers = 1;
+
+        Flux::modal('profile-form')->show();
+    }
+
+    /**
+     * Le package mikrotik-laravel n'expose que la lecture et la création des
+     * profils Hotspot (pas de modification/suppression) : cet écran reflète
+     * cette limite plutôt que de contourner l'API du package par une
+     * commande RouterOS brute.
+     */
+    public function createHotspotProfile(): void
+    {
+        $data = $this->validate(self::PROFILE_RULES);
+
+        $payload = ['name' => $data['profileName'], 'shared-users' => (string) $data['profileSharedUsers']];
+
+        if ($data['profileRateLimit'] !== '') {
+            $payload['rate-limit'] = $data['profileRateLimit'];
+        }
+
+        if ($data['profileSessionTimeout'] !== '') {
+            $payload['session-timeout'] = $data['profileSessionTimeout'];
+        }
+
+        try {
+            MikroTik::hotspot()->createProfile($payload);
+        } catch (\Throwable $e) {
+            Log::error('RouterOS: échec de la création du profil Hotspot', [
+                'name' => $data['profileName'],
+                'error' => $e->getMessage(),
+            ]);
+
+            Flux::toast(variant: 'danger', text: "Impossible de contacter le routeur pour l'instant. Réessayez dans un instant.");
+
+            return;
+        }
+
+        Flux::modal('profile-form')->close();
+        Flux::toast(variant: 'success', text: 'Profil Hotspot créé.');
+    }
 
     /**
      * Charge la configuration enregistrée dans le formulaire et ouvre le
@@ -52,7 +125,7 @@ new #[Title('Routeur')] class extends Component
 
     public function saveSettings(): void
     {
-        $data = $this->validate();
+        $data = $this->validate(self::CONNECTION_RULES);
 
         RouterSetting::current()->update($data);
 
@@ -69,7 +142,7 @@ new #[Title('Routeur')] class extends Component
      */
     public function testConnection(): void
     {
-        $data = $this->validate();
+        $data = $this->validate(self::CONNECTION_RULES);
 
         try {
             $identity = (new MikrotikManager([
@@ -143,6 +216,7 @@ new #[Title('Routeur')] class extends Component
                 'resources' => [],
                 'interfaces' => [],
                 'activeSessions' => [],
+                'profiles' => [],
             ];
         }
 
@@ -151,6 +225,7 @@ new #[Title('Routeur')] class extends Component
             $resources = MikroTik::system()->getResources();
             $interfaces = MikroTik::interfaces()->getInterfaces();
             $activeSessions = MikroTik::hotspot()->getActiveHosts();
+            $profiles = MikroTik::hotspot()->getProfiles();
         } catch (\Throwable $e) {
             Log::error('RouterOS: routeur injoignable depuis l\'écran d\'administration', [
                 'error' => $e->getMessage(),
@@ -163,6 +238,7 @@ new #[Title('Routeur')] class extends Component
                 'resources' => [],
                 'interfaces' => [],
                 'activeSessions' => [],
+                'profiles' => [],
             ];
         }
 
@@ -173,6 +249,7 @@ new #[Title('Routeur')] class extends Component
             'resources' => $resources,
             'interfaces' => $interfaces,
             'activeSessions' => $activeSessions,
+            'profiles' => $profiles,
         ];
     }
 };
@@ -332,7 +409,82 @@ new #[Title('Routeur')] class extends Component
                 </div>
             @endif
         </div>
+
+        <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+            <div class="flex items-center justify-between gap-4">
+                <flux:heading size="lg">Profils Hotspot</flux:heading>
+                <flux:button size="sm" variant="ghost" icon="plus" wire:click="openProfileModal">
+                    Créer un profil
+                </flux:button>
+            </div>
+
+            @if (empty($profiles))
+                <flux:text class="text-zinc-500">Aucun profil Hotspot sur ce routeur.</flux:text>
+            @else
+                <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+                    <table class="w-full text-sm">
+                        <thead class="bg-zinc-50 dark:bg-zinc-900">
+                            <tr>
+                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Nom</th>
+                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Débit</th>
+                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Utilisateurs partagés</th>
+                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Session max</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                            @foreach ($profiles as $profile)
+                                <tr wire:key="profile-{{ $profile['.id'] ?? $profile['name'] }}">
+                                    <td class="px-4 py-3 font-medium">{{ $profile['name'] ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-zinc-500">{{ $profile['rate-limit'] ?? 'Illimité' }}</td>
+                                    <td class="px-4 py-3 text-zinc-500">{{ $profile['shared-users'] ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-zinc-500">{{ $profile['session-timeout'] ?? 'Illimitée' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
     @endif
+
+    <flux:modal name="profile-form" class="max-w-lg">
+        <form wire:submit="createHotspotProfile" class="flex flex-col gap-6">
+            <flux:heading size="lg">Créer un profil Hotspot</flux:heading>
+
+            <flux:field>
+                <flux:label>Nom</flux:label>
+                <flux:input wire:model="profileName" />
+                <flux:error name="profileName" />
+            </flux:field>
+
+            <flux:field>
+                <flux:label>Débit (rx/tx)</flux:label>
+                <flux:input wire:model="profileRateLimit" placeholder="5M/5M" />
+                <flux:description>Laisser vide pour un débit illimité.</flux:description>
+                <flux:error name="profileRateLimit" />
+            </flux:field>
+
+            <flux:field>
+                <flux:label>Utilisateurs partagés</flux:label>
+                <flux:input type="number" wire:model="profileSharedUsers" min="1" max="999" />
+                <flux:error name="profileSharedUsers" />
+            </flux:field>
+
+            <flux:field>
+                <flux:label>Durée maximale de session</flux:label>
+                <flux:input wire:model="profileSessionTimeout" placeholder="1h30m" />
+                <flux:description>Format RouterOS (ex. 1h, 30m, 1d). Laisser vide pour aucune limite.</flux:description>
+                <flux:error name="profileSessionTimeout" />
+            </flux:field>
+
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Annuler</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">Créer</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 
     <flux:modal name="router-settings-form" class="max-w-lg">
         <form wire:submit="saveSettings" class="flex flex-col gap-6">

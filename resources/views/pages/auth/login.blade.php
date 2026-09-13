@@ -27,25 +27,26 @@
                 <flux:error name="email" />
             </flux:field>
 
-            <div class="relative">
-                <flux:field>
+            <flux:field>
+                <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                     <flux:label class="glass-text">Mot de passe</flux:label>
-                    <flux:input
-                        name="password"
-                        type="password"
-                        required
-                        autocomplete="current-password"
-                        viewable
-                    />
-                    <flux:error name="password" />
-                </flux:field>
 
-                @if (Route::has('password.request'))
-                    <flux:link class="glass-text absolute top-0 text-sm end-0 opacity-80" :href="route('password.request')" wire:navigate>
-                        Mot de passe oublié ?
-                    </flux:link>
-                @endif
-            </div>
+                    @if (Route::has('password.request'))
+                        <flux:link class="glass-text text-sm opacity-80" :href="route('password.request')" wire:navigate>
+                            Mot de passe oublié ?
+                        </flux:link>
+                    @endif
+                </div>
+
+                <flux:input
+                    name="password"
+                    type="password"
+                    required
+                    autocomplete="current-password"
+                    viewable
+                />
+                <flux:error name="password" />
+            </flux:field>
 
             <flux:label class="glass-text flex items-center gap-2">
                 <flux:checkbox name="remember" :checked="old('remember')"/>

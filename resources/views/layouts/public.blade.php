@@ -21,12 +21,12 @@
 
         <div class="flex min-h-screen flex-col">
             <header class="glass-card m-4 px-4 py-3">
-                <div class="mx-auto grid w-full max-w-5xl grid-cols-3 items-center gap-4">
-                    <a href="{{ route('home') }}" wire:navigate class="flex shrink-0 items-center gap-2 justify-self-start">
-                        <span class="flex size-8 items-center justify-center rounded-lg bg-white/20">
+                <div class="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 md:grid md:grid-cols-3">
+                    <a href="{{ route('home') }}" wire:navigate class="flex min-w-0 shrink items-center gap-2 md:shrink-0 md:justify-self-start">
+                        <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/20">
                             <flux:icon name="wifi" class="glass-text size-4" />
                         </span>
-                        <span class="glass-text text-base font-bold whitespace-nowrap">{{ $wifiZoneSetting->name }}</span>
+                        <span class="glass-text truncate text-base font-bold">{{ $wifiZoneSetting->name }}</span>
                     </a>
 
                     <nav class="hidden items-center gap-1 justify-self-center rounded-full border border-white/30 p-1 md:flex">
@@ -45,16 +45,52 @@
                         @endforeach
                     </nav>
 
-                    <flux:button
-                        :href="auth('customer')->check() ? route('account.profile') : route('login')"
-                        wire:navigate
-                        variant="ghost"
-                        size="sm"
-                        icon:trailing="user-circle"
-                        class="glass-button justify-self-end rounded-full!"
-                    >
-                        Mon compte
-                    </flux:button>
+                    <div class="flex shrink-0 items-center gap-2 md:justify-self-end">
+                        <flux:dropdown position="bottom" align="end" class="md:hidden">
+                            <flux:button variant="ghost" size="sm" icon="bars-3" class="glass-button rounded-full!" aria-label="Menu" />
+
+                            <flux:menu class="glass-card border-white/30! bg-white/15! p-2!">
+                                @foreach ([
+                                    'home' => 'Accueil',
+                                    'packages.index' => 'Forfaits',
+                                    'hotspot-access.show' => "J'ai un code",
+                                ] as $routeName => $label)
+                                    <flux:menu.item
+                                        :href="route($routeName)"
+                                        wire:navigate
+                                        class="text-white! {{ request()->routeIs($routeName) ? 'bg-white/20!' : '' }} data-active:bg-white/20!"
+                                    >
+                                        {{ $label }}
+                                    </flux:menu.item>
+                                @endforeach
+                            </flux:menu>
+                        </flux:dropdown>
+
+                        @php
+                            $accountHref = auth('customer')->check() ? route('account.profile') : route('login');
+                        @endphp
+
+                        <flux:button
+                            :href="$accountHref"
+                            wire:navigate
+                            variant="ghost"
+                            size="sm"
+                            icon="user-circle"
+                            class="glass-button flex! rounded-full! md:hidden!"
+                            aria-label="Mon compte"
+                        />
+
+                        <flux:button
+                            :href="$accountHref"
+                            wire:navigate
+                            variant="ghost"
+                            size="sm"
+                            icon:trailing="user-circle"
+                            class="glass-button hidden! rounded-full! md:inline-flex!"
+                        >
+                            Mon compte
+                        </flux:button>
+                    </div>
                 </div>
             </header>
 

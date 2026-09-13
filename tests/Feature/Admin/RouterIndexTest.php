@@ -122,6 +122,21 @@ test('an admin opening the configuration form sees the current router settings p
         ->assertSet('use_ssl', true);
 });
 
+test('an admin opening the configuration form on an unconfigured router does not crash', function () {
+    // RouterSetting::current() crée la ligne singleton avec host/username à
+    // null tant que l'admin n'a jamais rien enregistré : configure() ne doit
+    // pas planter en assignant ces valeurs nulles aux propriétés typées
+    // string du composant.
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test('pages::admin.router.index')
+        ->call('configure')
+        ->assertSet('host', '')
+        ->assertSet('username', '')
+        ->assertHasNoErrors();
+});
+
 test('an admin can save new router connection settings', function () {
     fakeReachableRouter();
 

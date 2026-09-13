@@ -40,9 +40,9 @@ new #[Title('Routeur')] class extends Component
     {
         $setting = RouterSetting::current();
 
-        $this->host = $setting->host;
+        $this->host = $setting->host ?? '';
         $this->port = $setting->port;
-        $this->username = $setting->username;
+        $this->username = $setting->username ?? '';
         $this->password = $setting->password ?? '';
         $this->timeout = $setting->timeout;
         $this->use_ssl = $setting->use_ssl;

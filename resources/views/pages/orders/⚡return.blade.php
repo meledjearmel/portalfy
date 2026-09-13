@@ -95,77 +95,18 @@ new #[Layout('layouts.public')] #[Title('Vérification du paiement')] class exte
                     </flux:heading>
                 @endif
 
-                @if ($hotspotContext)
-                    {{-- wire:ignore : ce bloc ne doit être (re)créé qu'une seule fois,
-                    jamais retouché par un morph Livewire ultérieur (wire:poll,
-                    événement Reverb) qui redéclencherait la soumission du
-                    formulaire et re-tenterait l'authentification RouterOS. --}}
-                    <div wire:ignore>
-                        <iframe name="hotspot-auto-login-frame" class="hidden" aria-hidden="true"></iframe>
-                        <form
-                            id="hotspot-auto-login-form"
-                            method="post"
-                            target="hotspot-auto-login-frame"
-                            action="{{ $hotspotContext['link_login'] }}"
-                        >
-                            <input type="hidden" name="username" value="{{ $loginCredentials['username'] }}">
-                            <input type="hidden" name="password" value="{{ $loginCredentials['password'] }}">
-                            @if ($hotspotContext['link_orig'])
-                                <input type="hidden" name="dst" value="{{ $hotspotContext['link_orig'] }}">
-                            @endif
-                        </form>
-                        <script>
-                            document.getElementById('hotspot-auto-login-form').submit();
-                        </script>
-                    </div>
-
-                    <flux:text class="glass-text text-xs opacity-70">
-                        Connexion automatique au wifi en cours...
-                    </flux:text>
-                @else
-                    <flux:text class="glass-text text-sm opacity-90">
-                        Connecte-toi au wifi {{ $zone->name }} puis reviens sur cette page pour une connexion
-                        automatique.
-                    </flux:text>
-                @endif
-
-                <div
-                    x-data="{ copied: false }"
-                    class="flex w-full flex-col gap-3"
-                >
-                    @if ($hotspotContext)
-                        <flux:button
-                            variant="ghost"
-                            class="glass-button w-full"
-                            x-on:click="document.getElementById('hotspot-auto-login-form').submit()"
-                        >
-                            Se connecter au WiFi
-                        </flux:button>
-                    @endif
-
-                    <div class="flex gap-3">
-                        <flux:button
-                            variant="ghost"
-                            class="glass-button flex-1"
-                            x-on:click="
-                                navigator.clipboard.writeText('{{ $order->hotspotAccount->code }}');
-                                copied = true;
-                                setTimeout(() => copied = false, 2000);
-                            "
-                        >
-                            <span x-show="!copied">Copier</span>
-                            <span x-show="copied" x-cloak>Copié !</span>
-                        </flux:button>
-
-                        <flux:button
-                            variant="ghost"
-                            class="glass-button flex-1"
-                            x-show="navigator.share"
-                            x-on:click="navigator.share({ text: 'Mon code WiFi : {{ $order->hotspotAccount->code }}' })"
-                        >
-                            Partager
-                        </flux:button>
-                    </div>
+                {{-- wire:ignore sur tout le bloc : le formulaire d'auto-connexion ne doit
+                être (re)créé qu'une seule fois, jamais retouché par un morph Livewire
+                ultérieur (wire:poll, événement Reverb) qui redéclencherait sa
+                soumission et re-tenterait l'authentification RouterOS. --}}
+                <div wire:ignore class="flex w-full flex-col items-center gap-3">
+                    <x-hotspot-login-actions
+                        :code="$order->hotspotAccount->code"
+                        :hotspot-context="$hotspotContext"
+                        :login-credentials="$loginCredentials"
+                        :share-url="route('hotspot-access.show', ['code' => $order->hotspotAccount->code])"
+                        :zone-name="$zone->name"
+                    />
                 </div>
             @else
                 <flux:text class="glass-text opacity-90">

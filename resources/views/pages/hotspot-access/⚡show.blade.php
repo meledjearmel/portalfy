@@ -1,5 +1,7 @@
 <?php
 
+use App\Actions\CaptureHotspotContextAction;
+use App\Actions\ResolveHotspotLoginCredentialsAction;
 use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
 use Illuminate\Support\Str;
@@ -12,6 +14,22 @@ new #[Layout('layouts.public')] #[Title("J'ai déjà un code")] class extends Co
     public string $code = '';
 
     public ?HotspotAccount $account = null;
+
+    /**
+     * Un lien partagé (voir hotspot-login-actions) porte le code en query
+     * string : on pré-remplit et on vérifie immédiatement, pour que la
+     * personne qui le reçoit atterrisse directement sur le bouton de
+     * connexion plutôt que de devoir retaper 6 caractères.
+     */
+    public function mount(): void
+    {
+        $shared = request()->query('code');
+
+        if (is_string($shared) && $shared !== '') {
+            $this->code = Str::upper(trim($shared));
+            $this->verify();
+        }
+    }
 
     public function verify(): void
     {
@@ -46,6 +64,21 @@ new #[Layout('layouts.public')] #[Title("J'ai déjà un code")] class extends Co
 
         $this->account = $account;
     }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function with(
+        CaptureHotspotContextAction $hotspotContextAction,
+        ResolveHotspotLoginCredentialsAction $resolveHotspotLoginCredentials,
+    ): array {
+        return [
+            'hotspotContext' => $hotspotContextAction->current(),
+            'loginCredentials' => $this->account
+                ? $resolveHotspotLoginCredentials->handle($this->account)
+                : null,
+        ];
+    }
 };
 ?>
 
@@ -68,9 +101,14 @@ new #[Layout('layouts.public')] #[Title("J'ai déjà un code")] class extends Co
                 </flux:text>
             @endif
 
-            <flux:button variant="ghost" class="glass-button mt-2 w-full" disabled>
-                Se connecter au WiFi
-            </flux:button>
+            <div wire:ignore class="mt-2 flex w-full flex-col items-center gap-3">
+                <x-hotspot-login-actions
+                    :code="$account->code"
+                    :hotspot-context="$hotspotContext"
+                    :login-credentials="$loginCredentials"
+                    :share-url="route('hotspot-access.show', ['code' => $account->code])"
+                />
+            </div>
         </div>
     @else
         <form wire:submit="verify" class="glass-card flex w-full flex-col items-center gap-6 p-8">

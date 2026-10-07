@@ -3,6 +3,7 @@
 use App\Actions\CreateHotspotAccountAction;
 use App\Enums\CredentialMode;
 use App\Enums\HotspotAccountStatus;
+use App\Models\HotspotAccount;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\WifiZoneSetting;
@@ -52,6 +53,32 @@ test('it returns null and logs without throwing when the router is unreachable',
     $account = (new CreateHotspotAccountAction)->handle(Package::factory()->create());
 
     expect($account)->toBeNull();
+});
+
+test('it removes the RouterOS user when the local account cannot be saved', function () {
+    $manager = Mockery::mock(HotspotManager::class);
+    $manager->shouldReceive('createUser')->once();
+    $manager->shouldReceive('deleteUser')->once();
+    MikroTik::shouldReceive('hotspot')->andReturn($manager);
+
+    HotspotAccount::creating(fn () => throw new RuntimeException('Database unavailable'));
+
+    $account = (new CreateHotspotAccountAction)->handle(Package::factory()->create(['max_speed_mbps' => null]));
+
+    expect($account)->toBeNull()
+        ->and(HotspotAccount::count())->toBe(0);
+});
+
+test('it does not try to remove a RouterOS user that was never created', function () {
+    MikroTik::shouldReceive('hotspot')->andReturnUsing(function () {
+        $manager = Mockery::mock(HotspotManager::class);
+        $manager->shouldReceive('createUser')->andThrow(new ApiException('Router unreachable'));
+        $manager->shouldNotReceive('deleteUser');
+
+        return $manager;
+    });
+
+    expect((new CreateHotspotAccountAction)->handle(Package::factory()->create(['max_speed_mbps' => null])))->toBeNull();
 });
 
 // RouterOS rejette `rate-limit` posé directement sur un utilisateur Hotspot

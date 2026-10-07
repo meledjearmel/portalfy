@@ -51,12 +51,15 @@ class CreateHotspotAccountAction
             'limit-uptime' => ($package->duration_minutes * 60).'s',
         ];
 
+        $isCreatedOnRouter = false;
+
         try {
             if ($package->max_speed_mbps) {
                 $data['profile'] = $this->ensureSpeedProfile($package->max_speed_mbps);
             }
 
             MikroTik::hotspot()->createUser($data);
+            $isCreatedOnRouter = true;
 
             $account = HotspotAccount::create([
                 'order_id' => $order?->id,
@@ -75,10 +78,32 @@ class CreateHotspotAccountAction
                 'error' => $e->getMessage(),
             ]);
 
+            if ($isCreatedOnRouter) {
+                $this->removeOrphanRouterUser($code);
+            }
+
             return null;
         }
 
         return $account;
+    }
+
+    /**
+     * L'utilisateur existe déjà sur RouterOS mais l'enregistrement local a
+     * échoué : sans ce retrait, il resterait utilisable sur le routeur tout
+     * en étant invisible dans l'admin. Un échec ici est seulement journalisé,
+     * pour respecter le contrat "ne lève jamais d'exception" de handle().
+     */
+    private function removeOrphanRouterUser(string $code): void
+    {
+        try {
+            MikroTik::hotspot()->deleteUser($code);
+        } catch (\Throwable $e) {
+            Log::error('RouterOS: utilisateur Hotspot orphelin non supprimé', [
+                'code' => $code,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

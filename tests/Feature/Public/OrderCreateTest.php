@@ -27,13 +27,14 @@ test('the phone field is pre-filled for an authenticated customer', function () 
     $response->assertSee('0711223344');
 });
 
-test('paying creates a pending order, initiates a GeniusPay payment and redirects to checkout', function () {
+test('paying creates a pending order, initiates a GeniusPay payment and redirects straight to the chosen payment method', function () {
     Http::fake([
         '*/payments' => Http::response([
             'data' => [
                 'reference' => 'PAY-123',
                 'product_reference' => 'ORDER-REF',
                 'checkout_url' => 'https://pay.geniuspay.io/checkout/PAY-123',
+                'payment_url' => 'https://pay.wave.com/c/PAY-123',
                 'status' => 'pending',
             ],
         ]),
@@ -43,8 +44,9 @@ test('paying creates a pending order, initiates a GeniusPay payment and redirect
 
     Livewire::test('pages::orders.create', ['package' => $package])
         ->set('phone', '0700000000')
+        ->set('paymentMethod', 'wave')
         ->call('pay')
-        ->assertRedirect('https://pay.geniuspay.io/checkout/PAY-123');
+        ->assertRedirect('https://pay.wave.com/c/PAY-123');
 
     $order = Order::query()->sole();
 
@@ -54,6 +56,22 @@ test('paying creates a pending order, initiates a GeniusPay payment and redirect
         ->and($order->status)->toBe(OrderStatus::Pending)
         ->and($order->payment_provider)->toBe('geniuspay')
         ->and($order->payment_reference)->toBe('PAY-123');
+
+    Http::assertSent(fn ($request) => $request['payment_method'] === 'wave'
+        && $request['customer']['phone'] === '+2250700000000');
+});
+
+test('a payment method must be chosen before paying', function () {
+    Http::fake();
+    $package = Package::factory()->create();
+
+    Livewire::test('pages::orders.create', ['package' => $package])
+        ->set('phone', '0700000000')
+        ->call('pay')
+        ->assertHasErrors(['paymentMethod' => 'required']);
+
+    expect(Order::query()->count())->toBe(0);
+    Http::assertNothingSent();
 });
 
 test('a phone number that does not match the Ivorian format is rejected', function () {
@@ -78,6 +96,7 @@ test('spaces typed by the input mask are stripped before validation', function (
 
     Livewire::test('pages::orders.create', ['package' => $package])
         ->set('phone', '07 00 00 00 00')
+        ->set('paymentMethod', 'wave')
         ->call('pay')
         ->assertHasNoErrors();
 
@@ -93,6 +112,7 @@ test('a failure to reach the payment gateway shows a clear error and does not le
 
     Livewire::test('pages::orders.create', ['package' => $package])
         ->set('phone', '0700000000')
+        ->set('paymentMethod', 'wave')
         ->call('pay')
         ->assertHasErrors('phone');
 

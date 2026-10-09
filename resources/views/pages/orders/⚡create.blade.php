@@ -2,11 +2,13 @@
 
 use App\Contracts\PaymentGatewayContract;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Models\Order;
 use App\Models\Package;
 use GeniusPay\Laravel\Exceptions\GeniusPayException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -16,6 +18,8 @@ new #[Layout('layouts.public')] #[Title('Récapitulatif')] class extends Compone
     public Package $package;
 
     public string $phone = '';
+
+    public string $paymentMethod = '';
 
     public function mount(Package $package): void
     {
@@ -32,7 +36,9 @@ new #[Layout('layouts.public')] #[Title('Récapitulatif')] class extends Compone
 
         $this->validate([
             'phone' => ['required', 'regex:/^(01|05|07)\d{8}$/'],
+            'paymentMethod' => ['required', Rule::enum(PaymentMethod::class)],
         ], [
+            'paymentMethod.required' => 'Choisissez un moyen de paiement.',
             'phone.regex' => 'Entrez un numéro ivoirien valide (10 chiffres, commençant par 01, 05 ou 07).',
         ]);
 
@@ -46,7 +52,7 @@ new #[Layout('layouts.public')] #[Title('Récapitulatif')] class extends Compone
         ]);
 
         try {
-            $initiation = $gateway->createPayment($order);
+            $initiation = $gateway->createPayment($order, PaymentMethod::from($this->paymentMethod));
         } catch (GeniusPayException $e) {
             $order->forceDelete();
 
@@ -99,12 +105,20 @@ new #[Layout('layouts.public')] #[Title('Récapitulatif')] class extends Compone
             </flux:field>
         </div>
 
-        <div class="glass-card flex items-start gap-3 p-4">
-            <flux:icon name="information-circle" class="glass-text size-5 shrink-0" />
-            <flux:text class="glass-text text-sm opacity-90">
-                Le choix du moyen de paiement (Wave, Orange Money, MTN Money, carte)
-                se fait sur la page suivante.
-            </flux:text>
+        <div class="glass-card flex flex-col gap-3 p-6">
+            <flux:radio.group wire:model="paymentMethod" label="Moyen de paiement" class="glass-text">
+                @foreach (PaymentMethod::cases() as $method)
+                    <div class="flex items-center gap-3">
+                        @if ($method === PaymentMethod::Card)
+                            <flux:icon name="credit-card" variant="outline" class="glass-text size-6 shrink-0" />
+                        @else
+                            <x-dynamic-component :component="'payment-icon.'.$method->value" class="glass-text size-6 shrink-0" />
+                        @endif
+                        <flux:radio value="{{ $method->value }}" label="{{ $method->label() }}" class="glass-text" />
+                    </div>
+                @endforeach
+            </flux:radio.group>
+            <flux:error name="paymentMethod" />
         </div>
 
         <flux:button type="submit" variant="ghost" class="glass-button w-full">

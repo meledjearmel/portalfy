@@ -2,6 +2,7 @@
 
 namespace App\Contracts;
 
+use App\Enums\PaymentMethod;
 use App\Models\Order;
 
 /**
@@ -12,10 +13,11 @@ use App\Models\Order;
 interface PaymentGatewayContract
 {
     /**
-     * Initie un paiement hébergé pour la commande et retourne les
-     * identifiants fournisseur à persister sur l'Order.
+     * Initie un paiement pour la commande, directement auprès du moyen de
+     * paiement choisi par le client, et retourne les identifiants fournisseur
+     * à persister sur l'Order.
      */
-    public function createPayment(Order $order): PaymentInitiation;
+    public function createPayment(Order $order, PaymentMethod $method): PaymentInitiation;
 
     /**
      * Retourne l'URL de paiement hébergé pour une commande déjà initiée

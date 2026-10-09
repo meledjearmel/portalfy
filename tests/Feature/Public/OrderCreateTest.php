@@ -61,6 +61,22 @@ test('paying creates a pending order, initiates a GeniusPay payment and redirect
         && $request['customer']['phone'] === '+2250700000000');
 });
 
+test('visa and mastercard are both sent to the gateway as a card payment', function () {
+    Http::fake([
+        '*/payments' => Http::response([
+            'data' => ['reference' => 'PAY-123', 'checkout_url' => 'https://pay.geniuspay.io/checkout/PAY-123'],
+        ]),
+    ]);
+
+    Livewire::test('pages::orders.create', ['package' => Package::factory()->create()])
+        ->set('phone', '0700000000')
+        ->set('paymentMethod', 'mastercard')
+        ->call('pay')
+        ->assertHasNoErrors();
+
+    Http::assertSent(fn ($request) => $request['payment_method'] === 'card');
+});
+
 test('a payment method must be chosen before paying', function () {
     Http::fake();
     $package = Package::factory()->create();

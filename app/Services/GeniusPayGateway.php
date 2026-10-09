@@ -18,7 +18,7 @@ class GeniusPayGateway implements PaymentGatewayContract
             'description' => "Accès WiFi — {$order->package->name}",
             'success_url' => route('orders.return', $order),
             'error_url' => route('orders.return', $order),
-            'payment_method' => $method->value,
+            'payment_method' => $method->gatewayCode(),
             'country' => 'CI',
             'customer' => [
                 'phone' => '+225'.$order->phone,

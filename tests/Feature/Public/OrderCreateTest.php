@@ -1,11 +1,16 @@
 <?php
 
+use App\Actions\CheckRouterReachableAction;
 use App\Enums\OrderStatus;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Package;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
+
+beforeEach(function () {
+    $this->mock(CheckRouterReachableAction::class)->shouldReceive('handle')->andReturn(true)->byDefault();
+});
 
 test('the recap page shows the chosen package details', function () {
     $package = Package::factory()->create(['name' => 'Forfait Test', 'price' => 1500]);
@@ -133,4 +138,19 @@ test('a failure to reach the payment gateway shows a clear error and does not le
         ->assertHasErrors('phone');
 
     expect(Order::query()->withTrashed()->count())->toBe(0);
+});
+
+test('paying is refused without contacting the gateway when the router is unreachable', function () {
+    Http::fake();
+    $this->mock(CheckRouterReachableAction::class)->shouldReceive('handle')->andReturn(false);
+
+    Livewire::test('pages::orders.create', ['package' => Package::factory()->create()])
+        ->set('phone', '0700000000')
+        ->set('paymentMethod', 'wave')
+        ->call('pay')
+        ->assertHasErrors('paymentMethod')
+        ->assertNoRedirect();
+
+    expect(Order::query()->withTrashed()->count())->toBe(0);
+    Http::assertNothingSent();
 });

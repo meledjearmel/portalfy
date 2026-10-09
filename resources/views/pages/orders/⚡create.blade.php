@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\CheckRouterReachableAction;
 use App\Contracts\PaymentGatewayContract;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
@@ -30,7 +31,7 @@ new #[Layout('layouts.public')] #[Title('Récapitulatif')] class extends Compone
         }
     }
 
-    public function pay(PaymentGatewayContract $gateway): void
+    public function pay(PaymentGatewayContract $gateway, CheckRouterReachableAction $checkRouterReachable): void
     {
         $this->phone = preg_replace('/\D/', '', $this->phone);
 
@@ -41,6 +42,12 @@ new #[Layout('layouts.public')] #[Title('Récapitulatif')] class extends Compone
             'paymentMethod.required' => 'Choisissez un moyen de paiement.',
             'phone.regex' => 'Entrez un numéro ivoirien valide (10 chiffres, commençant par 01, 05 ou 07).',
         ]);
+
+        if (! $checkRouterReachable->handle()) {
+            $this->addError('paymentMethod', "Le service WiFi est momentanément indisponible. Vous n'avez pas été débité, réessayez dans quelques instants.");
+
+            return;
+        }
 
         $order = Order::create([
             'reference' => Str::upper(Str::random(10)),

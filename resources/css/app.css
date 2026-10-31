@@ -163,3 +163,123 @@ select:focus[data-flux-control] {
         background-position: -200% center;
     }
 }
+
+/*
+ * Console d'administration — reprend la mise en page de l'admin de ../me
+ * (sidebar flottante, panneaux arrondis sans bordure, boutons en pilule)
+ * avec les couleurs PortalFi. Jamais appliqué au portail public.
+ */
+.console {
+    --bg: #eef3f1;
+    --card: #ffffff;
+    --soft: #e6eeeb;
+    --soft-high: #d9e4e0;
+    --fg: #0B2B26;
+    --muted-fg: #5f6f6b;
+    --outline: #e1e8e5;
+    --brand: #0F9D8C;
+    --on-brand: #ffffff;
+    --nav: #0B2B26;
+    --nav-icon: #9fb5b0;
+}
+
+.dark .console {
+    --bg: #0b1210;
+    --card: #141d1b;
+    --soft: #1c2826;
+    --soft-high: #24332f;
+    --fg: #eef5f3;
+    --muted-fg: #8fa29d;
+    --outline: #22302d;
+    --brand: #14b3a0;
+    --on-brand: #ffffff;
+    --nav: #1c2826;
+    --nav-icon: #8fa29d;
+}
+
+.console h1,
+.console h2 {
+    letter-spacing: -0.02em;
+}
+
+.console [data-flux-button] {
+    border-radius: 9999px;
+}
+
+.console [data-flux-control]:is(input, select, textarea),
+.console [data-flux-select-button] {
+    border-radius: 1rem;
+    border-color: transparent;
+    background-color: var(--soft);
+    box-shadow: none;
+}
+
+.console-card {
+    border-radius: 1.5rem;
+    background-color: var(--card);
+}
+
+.console-table {
+    overflow-x: auto;
+    border-radius: 1.5rem;
+    background-color: var(--card);
+}
+
+.console-table thead th {
+    padding: 0.85rem 1rem;
+    text-align: start;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted-fg);
+    background-color: color-mix(in oklab, var(--soft) 60%, var(--card));
+}
+
+.console-table tbody td {
+    padding: 0.85rem 1rem;
+    border-top: 1px solid var(--outline);
+}
+
+.console-table tbody tr:hover {
+    background-color: color-mix(in oklab, var(--soft) 35%, var(--card));
+}
+
+.console-tabs {
+    display: inline-flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: 9999px;
+    background-color: var(--card);
+}
+
+.console-tab {
+    border-radius: 9999px;
+    padding: 0.45rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted-fg);
+    cursor: pointer;
+}
+
+.console-tab:hover {
+    color: var(--fg);
+}
+
+.console-tab-active {
+    background-color: var(--brand);
+    color: var(--on-brand);
+    font-weight: 600;
+}
+
+.console-tab-active:hover {
+    color: var(--on-brand);
+}
+
+.console-no-scrollbar {
+    scrollbar-width: none;
+}
+
+.console-no-scrollbar::-webkit-scrollbar {
+    display: none;
+}

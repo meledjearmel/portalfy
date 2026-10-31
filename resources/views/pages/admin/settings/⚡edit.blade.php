@@ -8,7 +8,7 @@ use Livewire\Attributes\Validate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
-new #[Title('Paramètres')] class extends Component
+new #[Title("Personnaliser le portail")] class extends Component
 {
     use WithFileUploads;
 
@@ -106,10 +106,10 @@ new #[Title('Paramètres')] class extends Component
 ?>
 
 <div class="flex flex-col gap-6">
-    <flux:heading size="xl">Paramètres</flux:heading>
+    <x-admin.page-header title="Personnaliser le portail" description="Nom, couleurs, coordonnées et textes affichés à vos clients sur la page WiFi." />
 
     <form wire:submit="save" class="flex flex-col gap-8">
-        <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="flex flex-col gap-4 console-card p-6">
             <flux:heading size="lg">Identité</flux:heading>
 
             <flux:field>
@@ -145,7 +145,7 @@ new #[Title('Paramètres')] class extends Component
             </div>
         </div>
 
-        <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="flex flex-col gap-4 console-card p-6">
             <flux:heading size="lg">Couleurs</flux:heading>
 
             <div class="grid grid-cols-3 gap-4">
@@ -169,7 +169,7 @@ new #[Title('Paramètres')] class extends Component
             </div>
         </div>
 
-        <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="flex flex-col gap-4 console-card p-6">
             <flux:heading size="lg">Contact</flux:heading>
 
             <div class="grid grid-cols-2 gap-4">
@@ -205,7 +205,7 @@ new #[Title('Paramètres')] class extends Component
             </flux:field>
         </div>
 
-        <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="flex flex-col gap-4 console-card p-6">
             <flux:heading size="lg">Accès Hotspot</flux:heading>
 
             <flux:field>
@@ -222,7 +222,7 @@ new #[Title('Paramètres')] class extends Component
             </flux:field>
         </div>
 
-        <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="flex flex-col gap-4 console-card p-6">
             <flux:heading size="lg">Textes légaux</flux:heading>
 
             <flux:field>

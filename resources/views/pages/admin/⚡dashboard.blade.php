@@ -10,7 +10,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 use ZillEAli\MikrotikLaravel\Facades\MikroTik;
 
-new #[Title('Tableau de bord')] class extends Component
+new #[Title("Vue d'ensemble")] class extends Component
 {
     /**
      * Rafraîchi en temps réel via AdminDashboardActivity (dispatché par
@@ -141,38 +141,38 @@ new #[Title('Tableau de bord')] class extends Component
 ?>
 
 <div class="flex flex-col gap-6">
-    <flux:heading size="xl">Tableau de bord</flux:heading>
+    <x-admin.page-header title="Vue d'ensemble" description="Vos ventes, vos clients et l'état du réseau en un coup d'œil." />
 
     <div class="grid gap-4 sm:grid-cols-3">
-        <div class="flex flex-col gap-1 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-            <flux:text class="text-sm text-zinc-500">Chiffre d'affaires</flux:text>
+        <div class="flex flex-col gap-1 console-card p-6">
+            <flux:text class="text-sm text-[var(--muted-fg)]">Chiffre d'affaires</flux:text>
             <flux:heading size="lg">{{ number_format($revenue, 0, ',', ' ') }} F</flux:heading>
         </div>
 
-        <div class="flex flex-col gap-1 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-            <flux:text class="text-sm text-zinc-500">Ventes</flux:text>
+        <div class="flex flex-col gap-1 console-card p-6">
+            <flux:text class="text-sm text-[var(--muted-fg)]">Ventes</flux:text>
             <flux:heading size="lg">{{ $salesCount }}</flux:heading>
         </div>
 
-        <div class="flex flex-col gap-1 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-            <flux:text class="text-sm text-zinc-500">Comptes actifs</flux:text>
+        <div class="flex flex-col gap-1 console-card p-6">
+            <flux:text class="text-sm text-[var(--muted-fg)]">Comptes actifs</flux:text>
             <flux:heading size="lg">{{ $activeAccountsCount }}</flux:heading>
         </div>
     </div>
 
     <div class="grid gap-4 sm:grid-cols-3">
-        <div class="flex flex-col gap-1 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-            <flux:text class="text-sm text-zinc-500">Clients actifs</flux:text>
+        <div class="flex flex-col gap-1 console-card p-6">
+            <flux:text class="text-sm text-[var(--muted-fg)]">Clients actifs</flux:text>
             <flux:heading size="lg">{{ $activeCustomersCount }}</flux:heading>
         </div>
 
-        <div class="flex flex-col gap-1 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-            <flux:text class="text-sm text-zinc-500">Vouchers actifs</flux:text>
+        <div class="flex flex-col gap-1 console-card p-6">
+            <flux:text class="text-sm text-[var(--muted-fg)]">Vouchers actifs</flux:text>
             <flux:heading size="lg">{{ $activeVouchersCount }}</flux:heading>
         </div>
 
-        <div class="flex flex-col gap-1 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-            <flux:text class="text-sm text-zinc-500">Sessions actives</flux:text>
+        <div class="flex flex-col gap-1 console-card p-6">
+            <flux:text class="text-sm text-[var(--muted-fg)]">Sessions actives</flux:text>
             <flux:heading size="lg">{{ $activeSessionsCount ?? '—' }}</flux:heading>
             @if ($activeSessionsCount === null)
                 <flux:text class="text-sm text-red-500">Routeur injoignable</flux:text>
@@ -181,7 +181,7 @@ new #[Title('Tableau de bord')] class extends Component
     </div>
 
     <div class="grid gap-4 lg:grid-cols-2">
-        <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="flex flex-col gap-4 console-card p-6">
             <flux:heading size="lg">Ventes des 7 derniers jours</flux:heading>
 
             @php
@@ -191,20 +191,20 @@ new #[Title('Tableau de bord')] class extends Component
             <div class="flex h-32 items-end gap-2">
                 @foreach ($dailyRevenue as $day)
                     <div class="flex flex-1 flex-col items-center gap-2" wire:key="daily-revenue-{{ $loop->index }}">
-                        <flux:text class="text-xs text-zinc-500">{{ number_format($day['amount'], 0, ',', ' ') }}</flux:text>
+                        <flux:text class="text-xs text-[var(--muted-fg)]">{{ number_format($day['amount'], 0, ',', ' ') }}</flux:text>
                         <div class="flex h-24 w-full items-end overflow-hidden rounded-md bg-zinc-100 dark:bg-zinc-800">
                             <div
                                 class="w-full rounded-md bg-[#0F9D8C]"
                                 style="height: {{ max((int) round($day['amount'] / $maxDailyAmount * 100), $day['amount'] > 0 ? 6 : 0) }}%"
                             ></div>
                         </div>
-                        <flux:text class="text-xs text-zinc-500">{{ $day['label'] }}</flux:text>
+                        <flux:text class="text-xs text-[var(--muted-fg)]">{{ $day['label'] }}</flux:text>
                     </div>
                 @endforeach
             </div>
         </div>
 
-        <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="flex flex-col gap-4 console-card p-6">
             <flux:heading size="lg">Commandes par statut</flux:heading>
 
             <div class="flex flex-col gap-3">
@@ -216,7 +216,7 @@ new #[Title('Tableau de bord')] class extends Component
                     <div class="flex flex-col gap-1" wire:key="status-{{ $item['status']->value }}">
                         <div class="flex items-center justify-between gap-2">
                             <flux:badge :color="$item['status']->color()" size="sm">{{ $item['status']->label() }}</flux:badge>
-                            <flux:text class="text-sm text-zinc-500">{{ $item['count'] }}</flux:text>
+                            <flux:text class="text-sm text-[var(--muted-fg)]">{{ $item['count'] }}</flux:text>
                         </div>
                         <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                             <div class="h-full rounded-full {{ $item['barClass'] }}" style="width: {{ (int) round($item['count'] / $maxStatusCount * 100) }}%"></div>
@@ -228,7 +228,7 @@ new #[Title('Tableau de bord')] class extends Component
     </div>
 
     @if ($topPackages->isNotEmpty())
-        <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="flex flex-col gap-4 console-card p-6">
             <flux:heading size="lg">Forfaits les plus vendus</flux:heading>
 
             @php
@@ -240,7 +240,7 @@ new #[Title('Tableau de bord')] class extends Component
                     <div class="flex flex-col gap-1" wire:key="top-package-{{ $package->id }}">
                         <div class="flex items-center justify-between gap-2">
                             <flux:text class="font-medium">{{ $package->name }}</flux:text>
-                            <flux:text class="text-sm text-zinc-500">{{ $package->paid_orders_count }} vente(s)</flux:text>
+                            <flux:text class="text-sm text-[var(--muted-fg)]">{{ $package->paid_orders_count }} vente(s)</flux:text>
                         </div>
                         <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                             <div class="h-full rounded-full bg-[#0F9D8C]" style="width: {{ (int) round($package->paid_orders_count / $maxPackageSales * 100) }}%"></div>
@@ -251,18 +251,18 @@ new #[Title('Tableau de bord')] class extends Component
         </div>
     @endif
 
-    <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+    <div class="flex flex-col gap-4 console-card p-6">
         <flux:heading size="lg">Activité récente</flux:heading>
 
         @if ($recentOrders->isEmpty())
-            <flux:text class="text-zinc-500">Aucune commande pour le moment.</flux:text>
+            <flux:text class="text-[var(--muted-fg)]">Aucune commande pour le moment.</flux:text>
         @else
             <div class="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-700">
                 @foreach ($recentOrders as $order)
                     <div class="flex items-center justify-between gap-4 py-3" wire:key="recent-order-{{ $order->id }}">
                         <div class="flex flex-col gap-0.5">
                             <flux:text class="font-medium">{{ $order->package->name }}</flux:text>
-                            <flux:text class="text-sm text-zinc-500">
+                            <flux:text class="text-sm text-[var(--muted-fg)]">
                                 {{ $order->customer?->email ?? $order->phone }} ·
                                 {{ $order->created_at->translatedFormat('d M Y à H:i') }}
                             </flux:text>

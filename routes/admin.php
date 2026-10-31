@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PrintHotspotAccountsController;
 use App\Http\Middleware\EnsureRouterIsConfigured;
 use App\Livewire\Actions\Logout;
 use Illuminate\Support\Facades\Route;
@@ -21,7 +22,8 @@ Route::prefix('admin')->middleware(['auth:web'])->name('admin.')->group(function
     Route::middleware(EnsureRouterIsConfigured::class)->group(function () {
         Route::livewire('/tableau-de-bord', 'pages::admin.dashboard')->name('dashboard');
         Route::livewire('/commandes', 'pages::admin.orders.index')->name('orders.index');
-        Route::livewire('/comptes-hotspot', 'pages::admin.hotspot-accounts.index')->name('hotspot-accounts.index');
+        Route::livewire('/codes-wifi', 'pages::admin.hotspot-accounts.index')->name('hotspot-accounts.index');
+        Route::get('/codes-wifi/impression', PrintHotspotAccountsController::class)->name('hotspot-accounts.print');
         Route::livewire('/forfaits', 'pages::admin.packages.index')->name('packages.index');
         Route::livewire('/clients', 'pages::admin.customers.index')->name('customers.index');
         Route::livewire('/clients/{customer}', 'pages::admin.customers.show')->name('customers.show');

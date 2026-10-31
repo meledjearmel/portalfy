@@ -4,12 +4,10 @@ use App\Actions\ProvisionHotspotAccountAction;
 use App\Enums\CredentialMode;
 use App\Enums\HotspotAccountStatus;
 use App\Events\HotspotAccountProvisioned;
-use App\Models\HotspotAccount;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\WifiZoneSetting;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Str;
 use ZillEAli\MikrotikLaravel\Exceptions\ApiException;
 use ZillEAli\MikrotikLaravel\Exceptions\ValidationException;
 use ZillEAli\MikrotikLaravel\Facades\MikroTik;
@@ -102,25 +100,10 @@ test('it returns null and logs without throwing when MikroTik rejects the payloa
     expect($order->fresh()->hotspotAccount)->toBeNull();
 });
 
-test('it returns null and logs without throwing when the generated code collides with an existing one', function () {
-    // Une collision sur hotspot_accounts.code (contrainte unique) survient
-    // après que le compte RouterOS a déjà été créé côté routeur : elle doit
-    // être absorbée comme les autres échecs, pas remonter en QueryException.
+test('the generated code is uppercase alphanumeric without ambiguous characters', function () {
     MikrotikFake::fake();
 
-    // Le fake ne doit être posé qu'après avoir créé les fixtures : les
-    // factories Order/HotspotAccount utilisent aussi Str::random() pour
-    // leurs propres champs (reference, payment_reference), qui entreraient
-    // en collision entre eux si on le posait plus tôt.
-    $order = Order::factory()->paid()->create();
-    HotspotAccount::factory()->create(['code' => 'ABC123']);
+    $account = (new ProvisionHotspotAccountAction)->handle(Order::factory()->paid()->create());
 
-    Str::createRandomStringsUsing(fn () => 'abc123');
-
-    $account = (new ProvisionHotspotAccountAction)->handle($order);
-
-    expect($account)->toBeNull();
-    expect($order->fresh()->hotspotAccount)->toBeNull();
-
-    Str::createRandomStringsNormally();
+    expect($account->code)->toMatch('/^[A-HJKMNP-Z2-9]{6}$/');
 });

@@ -114,7 +114,7 @@ new #[Layout('layouts.public')] #[Title("J'ai déjà un code")] class extends Co
         <form wire:submit="verify" class="glass-card flex w-full flex-col items-center gap-6 p-8">
             <div class="flex flex-col items-center gap-3">
                 <flux:text class="glass-text text-sm font-medium opacity-90">Entrez votre code à 6 caractères</flux:text>
-                <flux:otp length="6" wire:model="code" autofocus />
+                <flux:otp length="6" mode="alphanumeric" wire:model="code" class="[&_input]:uppercase" autofocus />
                 <flux:error name="code" />
             </div>
 

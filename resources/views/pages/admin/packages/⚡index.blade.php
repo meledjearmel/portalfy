@@ -6,7 +6,7 @@ use Livewire\Attributes\Title;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 
-new #[Title('Forfaits')] class extends Component
+new #[Title("Forfaits et tarifs")] class extends Component
 {
     public ?Package $editing = null;
 
@@ -95,25 +95,25 @@ new #[Title('Forfaits')] class extends Component
 
 <div class="flex flex-col gap-6">
     <div class="flex items-center justify-between gap-4">
-        <flux:heading size="xl">Forfaits</flux:heading>
+        <x-admin.page-header title="Forfaits et tarifs" description="Les offres proposées à la vente : durée, prix et débit." />
         <flux:button variant="primary" wire:click="create">Ajouter un forfait</flux:button>
     </div>
 
     @if ($packages->isEmpty())
-        <flux:text class="text-zinc-500">Aucun forfait pour le moment.</flux:text>
+        <flux:text class="text-[var(--muted-fg)]">Aucun forfait pour le moment.</flux:text>
     @else
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="console-table">
             <table class="w-full text-sm">
-                <thead class="bg-zinc-50 dark:bg-zinc-900">
+                <thead>
                     <tr>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Nom</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Prix</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Durée</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Statut</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Actions</th>
+                        <th>Nom</th>
+                        <th>Prix</th>
+                        <th>Durée</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <tbody>
                     @foreach ($packages as $package)
                         <tr wire:key="package-{{ $package->id }}">
                             <td class="px-4 py-3">

@@ -9,7 +9,6 @@ use App\Models\Order;
 use App\Models\Package;
 use App\Models\WifiZoneSetting;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use ZillEAli\MikrotikLaravel\Facades\MikroTik;
 
 /**
@@ -39,9 +38,9 @@ class CreateHotspotAccountAction
     {
         $zone = WifiZoneSetting::current();
 
-        $code = Str::upper(Str::random(6));
+        $code = $this->generateUniqueCode();
         $secret = $zone->credential_mode === CredentialMode::Separate
-            ? Str::upper(Str::random(6))
+            ? $this->randomCode()
             : null;
 
         $data = [
@@ -86,6 +85,32 @@ class CreateHotspotAccountAction
         }
 
         return $account;
+    }
+
+    /**
+     * Majuscules et chiffres uniquement, sans les caractères qui se
+     * confondent une fois imprimés ou lus à voix haute (0/O, 1/I/L).
+     */
+    private function randomCode(): string
+    {
+        $alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+        return collect(range(1, 6))
+            ->map(fn (): string => $alphabet[random_int(0, strlen($alphabet) - 1)])
+            ->implode('');
+    }
+
+    /**
+     * Inclut les comptes en corbeille : un code restauré ne doit jamais
+     * entrer en collision avec un code émis entre-temps.
+     */
+    private function generateUniqueCode(): string
+    {
+        do {
+            $code = $this->randomCode();
+        } while (HotspotAccount::withTrashed()->where('code', $code)->exists());
+
+        return $code;
     }
 
     /**

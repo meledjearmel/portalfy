@@ -63,8 +63,9 @@ gamme) : l'esthétique prime ici sur la contrainte de performance par défaut.
 - Cartes : effet glass (voir exception ci-dessus), `border-radius: 12px`,
   padding généreux
 - Un seul CTA dominant par écran — jamais deux actions de même poids visuel
-  côte à côte (cf. "Acheter un accès" vs "J'ai déjà un code" : le premier est
-  toujours visuellement plus fort)
+  côte à côte (accueil du portail : la saisie du code est l'action dominante,
+  "Acheter un accès" vient en second — décision d'Armel du 2026-10-31, on
+  suppose que le visiteur a déjà un code, sinon il en achète un)
 
 ## Wording
 Toujours orienté utilisateur final, jamais de jargon technique ou d'erreur brute.

@@ -9,7 +9,7 @@ use Livewire\Component;
 use ZillEAli\MikrotikLaravel\Facades\MikroTik;
 use ZillEAli\MikrotikLaravel\MikrotikManager;
 
-new #[Title('Routeur')] class extends Component
+new #[Title("Connexion au routeur")] class extends Component
 {
     /**
      * Deux formulaires indépendants cohabitent sur cet écran (connexion au
@@ -257,7 +257,7 @@ new #[Title('Routeur')] class extends Component
 
 <div class="flex flex-col gap-6">
     <div class="flex items-center justify-between gap-4">
-        <flux:heading size="xl">Routeur</flux:heading>
+        <x-admin.page-header title="Connexion au routeur" description="Le routeur MikroTik qui crée réellement les accès WiFi. Il doit être joignable pour vendre des codes." />
 
         <div class="flex gap-2">
             <flux:button size="sm" variant="ghost" icon="cog-6-tooth" wire:click="configure">
@@ -270,9 +270,9 @@ new #[Title('Routeur')] class extends Component
     </div>
 
     @if (! $routerConfigured)
-        <div class="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-6 dark:border-zinc-700 dark:bg-zinc-900">
+        <div class="flex flex-col gap-3 console-card p-6">
             <flux:heading size="lg">Aucun routeur configuré</flux:heading>
-            <flux:text class="text-zinc-500">
+            <flux:text class="text-[var(--muted-fg)]">
                 Le reste de l'administration (forfaits, comptes Hotspot, tableau de bord...) reste inaccessible tant
                 qu'aucun routeur MikroTik n'a été enregistré ici.
             </flux:text>
@@ -300,28 +300,28 @@ new #[Title('Routeur')] class extends Component
         @endphp
 
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="flex flex-col gap-1 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-                <flux:text class="text-sm text-zinc-500">Identité</flux:text>
+            <div class="flex flex-col gap-1 console-card p-6">
+                <flux:text class="text-sm text-[var(--muted-fg)]">Identité</flux:text>
                 <flux:heading size="lg">{{ $identity }}</flux:heading>
-                <flux:text class="text-sm text-zinc-500">RouterOS {{ $resources['version'] ?? '—' }}</flux:text>
+                <flux:text class="text-sm text-[var(--muted-fg)]">RouterOS {{ $resources['version'] ?? '—' }}</flux:text>
             </div>
 
-            <div class="flex flex-col gap-1 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-                <flux:text class="text-sm text-zinc-500">Disponibilité</flux:text>
+            <div class="flex flex-col gap-1 console-card p-6">
+                <flux:text class="text-sm text-[var(--muted-fg)]">Disponibilité</flux:text>
                 <flux:heading size="lg">{{ $resources['uptime'] ?? '—' }}</flux:heading>
-                <flux:text class="text-sm text-zinc-500">{{ $resources['board-name'] ?? '—' }}</flux:text>
+                <flux:text class="text-sm text-[var(--muted-fg)]">{{ $resources['board-name'] ?? '—' }}</flux:text>
             </div>
 
-            <div class="flex flex-col gap-2 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-                <flux:text class="text-sm text-zinc-500">Charge CPU</flux:text>
+            <div class="flex flex-col gap-2 console-card p-6">
+                <flux:text class="text-sm text-[var(--muted-fg)]">Charge CPU</flux:text>
                 <flux:heading size="lg">{{ $cpuLoad }}%</flux:heading>
                 <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                     <div class="h-full rounded-full bg-[#0F9D8C]" style="width: {{ min($cpuLoad, 100) }}%"></div>
                 </div>
             </div>
 
-            <div class="flex flex-col gap-2 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-                <flux:text class="text-sm text-zinc-500">Mémoire</flux:text>
+            <div class="flex flex-col gap-2 console-card p-6">
+                <flux:text class="text-sm text-[var(--muted-fg)]">Mémoire</flux:text>
                 <flux:heading size="lg">{{ Number::fileSize($usedMemory, precision: 1) }} / {{ Number::fileSize($totalMemory, precision: 1) }}</flux:heading>
                 <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                     <div class="h-full rounded-full bg-[#0F9D8C]" style="width: {{ min($memoryPercent, 100) }}%"></div>
@@ -329,30 +329,30 @@ new #[Title('Routeur')] class extends Component
             </div>
         </div>
 
-        <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="flex flex-col gap-4 console-card p-6">
             <flux:heading size="lg">Sessions Hotspot actives</flux:heading>
 
             @if (empty($activeSessions))
-                <flux:text class="text-zinc-500">Aucune session active pour le moment.</flux:text>
+                <flux:text class="text-[var(--muted-fg)]">Aucune session active pour le moment.</flux:text>
             @else
-                <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+                <div class="console-table">
                     <table class="w-full text-sm">
-                        <thead class="bg-zinc-50 dark:bg-zinc-900">
+                        <thead>
                             <tr>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Utilisateur</th>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Adresse IP</th>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Adresse MAC</th>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Connecté depuis</th>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Actions</th>
+                                <th>Utilisateur</th>
+                                <th>Adresse IP</th>
+                                <th>Adresse MAC</th>
+                                <th>Connecté depuis</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                        <tbody>
                             @foreach ($activeSessions as $session)
                                 <tr wire:key="session-{{ $session['.id'] ?? $session['user'] }}">
                                     <td class="px-4 py-3 font-mono">{{ $session['user'] ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-zinc-500">{{ $session['address'] ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-zinc-500">{{ $session['mac-address'] ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-zinc-500">{{ $session['uptime'] ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-[var(--muted-fg)]">{{ $session['address'] ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-[var(--muted-fg)]">{{ $session['mac-address'] ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-[var(--muted-fg)]">{{ $session['uptime'] ?? '—' }}</td>
                                     <td class="px-4 py-3">
                                         <flux:button
                                             size="sm"
@@ -371,27 +371,27 @@ new #[Title('Routeur')] class extends Component
             @endif
         </div>
 
-        <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="flex flex-col gap-4 console-card p-6">
             <flux:heading size="lg">Interfaces réseau</flux:heading>
 
             @if (empty($interfaces))
-                <flux:text class="text-zinc-500">Aucune interface remontée par le routeur.</flux:text>
+                <flux:text class="text-[var(--muted-fg)]">Aucune interface remontée par le routeur.</flux:text>
             @else
-                <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+                <div class="console-table">
                     <table class="w-full text-sm">
-                        <thead class="bg-zinc-50 dark:bg-zinc-900">
+                        <thead>
                             <tr>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Nom</th>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Type</th>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">État</th>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Adresse MAC</th>
+                                <th>Nom</th>
+                                <th>Type</th>
+                                <th>État</th>
+                                <th>Adresse MAC</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                        <tbody>
                             @foreach ($interfaces as $interface)
                                 <tr wire:key="interface-{{ $interface['.id'] ?? $interface['name'] }}">
                                     <td class="px-4 py-3 font-medium">{{ $interface['name'] ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-zinc-500">{{ $interface['type'] ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-[var(--muted-fg)]">{{ $interface['type'] ?? '—' }}</td>
                                     <td class="px-4 py-3">
                                         @if (($interface['disabled'] ?? 'false') === 'true')
                                             <flux:badge color="zinc" size="sm">Désactivée</flux:badge>
@@ -401,7 +401,7 @@ new #[Title('Routeur')] class extends Component
                                             <flux:badge color="red" size="sm">Hors ligne</flux:badge>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-3 text-zinc-500 font-mono">{{ $interface['mac-address'] ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-[var(--muted-fg)] font-mono">{{ $interface['mac-address'] ?? '—' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -410,7 +410,7 @@ new #[Title('Routeur')] class extends Component
             @endif
         </div>
 
-        <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="flex flex-col gap-4 console-card p-6">
             <div class="flex items-center justify-between gap-4">
                 <flux:heading size="lg">Profils Hotspot</flux:heading>
                 <flux:button size="sm" variant="ghost" icon="plus" wire:click="openProfileModal">
@@ -419,25 +419,25 @@ new #[Title('Routeur')] class extends Component
             </div>
 
             @if (empty($profiles))
-                <flux:text class="text-zinc-500">Aucun profil Hotspot sur ce routeur.</flux:text>
+                <flux:text class="text-[var(--muted-fg)]">Aucun profil Hotspot sur ce routeur.</flux:text>
             @else
-                <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+                <div class="console-table">
                     <table class="w-full text-sm">
-                        <thead class="bg-zinc-50 dark:bg-zinc-900">
+                        <thead>
                             <tr>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Nom</th>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Débit</th>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Utilisateurs partagés</th>
-                                <th class="px-4 py-3 text-start font-medium text-zinc-500">Session max</th>
+                                <th>Nom</th>
+                                <th>Débit</th>
+                                <th>Utilisateurs partagés</th>
+                                <th>Session max</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                        <tbody>
                             @foreach ($profiles as $profile)
                                 <tr wire:key="profile-{{ $profile['.id'] ?? $profile['name'] }}">
                                     <td class="px-4 py-3 font-medium">{{ $profile['name'] ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-zinc-500">{{ $profile['rate-limit'] ?? 'Illimité' }}</td>
-                                    <td class="px-4 py-3 text-zinc-500">{{ $profile['shared-users'] ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-zinc-500">{{ $profile['session-timeout'] ?? 'Illimitée' }}</td>
+                                    <td class="px-4 py-3 text-[var(--muted-fg)]">{{ $profile['rate-limit'] ?? 'Illimité' }}</td>
+                                    <td class="px-4 py-3 text-[var(--muted-fg)]">{{ $profile['shared-users'] ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-[var(--muted-fg)]">{{ $profile['session-timeout'] ?? 'Illimitée' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

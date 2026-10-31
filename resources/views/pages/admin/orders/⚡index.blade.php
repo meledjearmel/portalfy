@@ -7,7 +7,7 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-new #[Title('Commandes')] class extends Component
+new #[Title("Paiements en ligne")] class extends Component
 {
     use WithPagination;
 
@@ -34,7 +34,7 @@ new #[Title('Commandes')] class extends Component
 
 <div class="flex flex-col gap-6">
     <div class="flex items-center justify-between gap-4">
-        <flux:heading size="xl">Commandes</flux:heading>
+        <x-admin.page-header title="Paiements en ligne" description="Chaque achat payé (ou tenté) sur le portail par Mobile Money ou carte." />
 
         <flux:select wire:model.live="status" class="max-w-xs">
             <flux:select.option value="">Tous les statuts</flux:select.option>
@@ -45,21 +45,21 @@ new #[Title('Commandes')] class extends Component
     </div>
 
     @if ($orders->isEmpty())
-        <flux:text class="text-zinc-500">Aucune commande ne correspond à ce filtre.</flux:text>
+        <flux:text class="text-[var(--muted-fg)]">Aucune commande ne correspond à ce filtre.</flux:text>
     @else
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="console-table">
             <table class="w-full text-sm">
-                <thead class="bg-zinc-50 text-start dark:bg-zinc-900">
+                <thead>
                     <tr>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Référence</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Forfait</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Client</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Montant</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Statut</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Date</th>
+                        <th>Référence</th>
+                        <th>Forfait</th>
+                        <th>Client</th>
+                        <th>Montant</th>
+                        <th>Statut</th>
+                        <th>Date</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <tbody>
                     @foreach ($orders as $order)
                         <tr wire:key="order-{{ $order->id }}">
                             <td class="px-4 py-3 font-mono">{{ $order->reference }}</td>
@@ -71,7 +71,7 @@ new #[Title('Commandes')] class extends Component
                                     {{ $order->status->label() }}
                                 </flux:badge>
                             </td>
-                            <td class="px-4 py-3 text-zinc-500">{{ $order->created_at->translatedFormat('d M Y à H:i') }}</td>
+                            <td class="px-4 py-3 text-[var(--muted-fg)]">{{ $order->created_at->translatedFormat('d M Y à H:i') }}</td>
                         </tr>
                     @endforeach
                 </tbody>

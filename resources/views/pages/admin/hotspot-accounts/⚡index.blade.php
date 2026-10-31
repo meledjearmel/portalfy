@@ -14,12 +14,29 @@ use Livewire\WithPagination;
 use ZillEAli\MikrotikLaravel\Exceptions\ResourceNotFoundException;
 use ZillEAli\MikrotikLaravel\Facades\MikroTik;
 
-new #[Title('Comptes Hotspot')] class extends Component
+new #[Title('Codes WiFi')] class extends Component
 {
     use WithPagination;
 
     #[Url]
     public string $search = '';
+
+    /**
+     * '' = tous, 'generes' = codes créés par l'admin (vouchers à imprimer),
+     * 'vendus' = codes achetés en ligne par un client.
+     */
+    #[Url(as: 'origine')]
+    public string $origin = '';
+
+    /** @var array<int, string> */
+    public array $selected = [];
+
+    /**
+     * Codes du dernier lot généré, proposés à l'impression juste après.
+     *
+     * @var array<int, int>
+     */
+    public array $lastBatchIds = [];
 
     #[Validate('required|exists:packages,id')]
     public ?int $voucherPackageId = null;
@@ -29,6 +46,12 @@ new #[Title('Comptes Hotspot')] class extends Component
 
     public function updatedSearch(): void
     {
+        $this->resetPage();
+    }
+
+    public function updatedOrigin(): void
+    {
+        $this->selected = [];
         $this->resetPage();
     }
 
@@ -57,24 +80,26 @@ new #[Title('Comptes Hotspot')] class extends Component
         $package = Package::findOrFail($this->voucherPackageId);
         $action = new CreateHotspotAccountAction;
 
-        $created = 0;
+        $this->lastBatchIds = [];
 
         for ($i = 0; $i < $this->voucherQuantity; $i++) {
-            if ($action->handle($package)) {
-                $created++;
+            if ($account = $action->handle($package)) {
+                $this->lastBatchIds[] = $account->id;
             }
         }
+
+        $created = count($this->lastBatchIds);
 
         Flux::modal('voucher-form')->close();
 
         if ($created === $this->voucherQuantity) {
-            Flux::toast(variant: 'success', text: "{$created} voucher(s) généré(s).");
+            Flux::toast(variant: 'success', text: "{$created} code(s) créé(s), prêts à imprimer.");
 
             return;
         }
 
         if ($created > 0) {
-            Flux::toast(variant: 'warning', text: "{$created} sur {$this->voucherQuantity} voucher(s) généré(s), le routeur a refusé les autres.");
+            Flux::toast(variant: 'warning', text: "{$created} code(s) sur {$this->voucherQuantity} créé(s), le routeur a refusé les autres.");
 
             return;
         }
@@ -195,6 +220,8 @@ new #[Title('Comptes Hotspot')] class extends Component
         return [
             'accounts' => HotspotAccount::query()
                 ->with(['package', 'order.customer'])
+                ->when($this->origin === 'generes', fn ($query) => $query->whereNull('order_id'))
+                ->when($this->origin === 'vendus', fn ($query) => $query->whereNotNull('order_id'))
                 ->when($this->search !== '', function ($query) {
                     $term = "%{$this->search}%";
 
@@ -214,75 +241,146 @@ new #[Title('Comptes Hotspot')] class extends Component
 ?>
 
 <div class="flex flex-col gap-6">
-    <div class="flex items-center justify-between gap-4">
-        <flux:heading size="xl">Comptes Hotspot</flux:heading>
-        <div class="flex gap-2">
-            <flux:input wire:model.live.debounce.300ms="search" placeholder="Rechercher par code, forfait, email ou téléphone..." class="max-w-xs" icon="magnifying-glass" />
-            <flux:button variant="primary" wire:click="openVoucherModal">Générer des vouchers</flux:button>
+    <x-admin.page-header
+        title="Codes WiFi"
+        description="Tous les codes d'accès : ceux que vous créez pour les imprimer et les vendre en main propre, et ceux achetés en ligne par vos clients."
+    >
+        <flux:button variant="primary" icon="plus" wire:click="openVoucherModal">Créer des codes à imprimer</flux:button>
+    </x-admin.page-header>
+
+    @if ($lastBatchIds !== [])
+        <div class="console-card flex flex-wrap items-center justify-between gap-4 p-5">
+            <div>
+                <flux:heading>{{ count($lastBatchIds) }} code(s) viennent d'être créés</flux:heading>
+                <flux:text>Imprimez-les maintenant pour les découper et les distribuer.</flux:text>
+            </div>
+            <flux:button
+                variant="primary"
+                icon="printer"
+                :href="route('admin.hotspot-accounts.print', ['ids' => $lastBatchIds])"
+                target="_blank"
+            >
+                Imprimer ce lot
+            </flux:button>
+        </div>
+    @endif
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="console-tabs" role="tablist">
+            @foreach (['' => 'Tous', 'generes' => 'Créés par moi', 'vendus' => 'Achetés par les clients'] as $value => $label)
+                <button
+                    type="button"
+                    role="tab"
+                    wire:click="$set('origin', '{{ $value }}')"
+                    @class(['console-tab', 'console-tab-active' => $origin === $value])
+                    aria-selected="{{ $origin === $value ? 'true' : 'false' }}"
+                >
+                    {{ $label }}
+                </button>
+            @endforeach
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+            <flux:input wire:model.live.debounce.300ms="search" placeholder="Code, forfait, email ou téléphone…" class="sm:w-72" icon="magnifying-glass" />
+
+            @if ($origin === 'generes' && $selected !== [])
+                <flux:button
+                    variant="primary"
+                    icon="printer"
+                    :href="route('admin.hotspot-accounts.print', ['ids' => $selected])"
+                    target="_blank"
+                >
+                    Imprimer la sélection ({{ count($selected) }})
+                </flux:button>
+            @endif
         </div>
     </div>
 
     @if ($accounts->isEmpty())
-        <flux:text class="text-zinc-500">
-            {{ $search !== '' ? 'Aucun compte Hotspot ne correspond à cette recherche.' : 'Aucun compte Hotspot pour le moment.' }}
-        </flux:text>
+        <div class="console-card p-10 text-center">
+            <flux:text>
+                {{ $search !== '' ? 'Aucun compte Hotspot ne correspond à cette recherche.' : 'Aucun code pour le moment.' }}
+            </flux:text>
+        </div>
     @else
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="console-table">
             <table class="w-full text-sm">
-                <thead class="bg-zinc-50 dark:bg-zinc-900">
+                <thead>
                     <tr>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Code</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Forfait</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Origine</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Statut</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Expire le</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Actions</th>
+                        @if ($origin === 'generes')
+                            <th class="w-10"><span class="sr-only">Sélection</span></th>
+                        @endif
+                        <th>Code</th>
+                        <th>Forfait</th>
+                        <th>Origine</th>
+                        <th>État</th>
+                        <th>Fin de l'accès</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <tbody>
                     @foreach ($accounts as $account)
                         <tr wire:key="account-{{ $account->id }}">
-                            <td class="px-4 py-3 font-mono">{{ $account->code }}</td>
-                            <td class="px-4 py-3">{{ $account->package?->name ?? '—' }}</td>
-                            <td class="px-4 py-3">
+                            @if ($origin === 'generes')
+                                <td>
+                                    <flux:checkbox wire:model.live="selected" value="{{ $account->id }}" />
+                                </td>
+                            @endif
+                            <td class="font-mono font-semibold tracking-wider">{{ $account->code }}</td>
+                            <td>{{ $account->package?->name ?? '—' }}</td>
+                            <td>
                                 @if ($account->isVoucher())
-                                    <flux:badge color="zinc" size="sm">Voucher</flux:badge>
+                                    <flux:badge color="zinc" size="sm" icon="printer">Créé par moi</flux:badge>
                                 @else
                                     {{ $account->order->customer?->email ?? $account->order->phone }}
                                 @endif
                             </td>
-                            <td class="px-4 py-3">
+                            <td>
                                 <flux:badge :color="$account->status->color()" size="sm">
                                     {{ $account->status->label() }}
                                 </flux:badge>
                             </td>
-                            <td class="px-4 py-3 text-zinc-500">
+                            <td class="text-[var(--muted-fg)]">
                                 {{ $account->expires_at?->translatedFormat('d M Y à H:i') ?? '—' }}
                             </td>
-                            <td class="px-4 py-3">
-                                <div class="flex gap-2">
-                                    <flux:button size="sm" variant="ghost" wire:click="extend({{ $account->id }})">
-                                        Prolonger
-                                    </flux:button>
+                            <td>
+                                <div class="flex justify-end">
+                                    <flux:dropdown align="end">
+                                        <flux:button size="sm" variant="ghost" icon="ellipsis-horizontal" aria-label="Actions" />
 
-                                    @if ($account->status === HotspotAccountStatus::Suspended)
-                                        <flux:button size="sm" variant="ghost" wire:click="reactivate({{ $account->id }})">
-                                            Réactiver
-                                        </flux:button>
-                                    @else
-                                        <flux:button size="sm" variant="danger" wire:click="suspend({{ $account->id }})">
-                                            Suspendre
-                                        </flux:button>
-                                    @endif
+                                        <flux:menu>
+                                            @if ($account->isVoucher())
+                                                <flux:menu.item icon="printer" :href="route('admin.hotspot-accounts.print', ['ids' => [$account->id]])" target="_blank">
+                                                    Imprimer
+                                                </flux:menu.item>
+                                            @endif
 
-                                    <flux:button
-                                        size="sm"
-                                        variant="ghost"
-                                        wire:click="delete({{ $account->id }})"
-                                        wire:confirm="Déplacer ce compte dans la corbeille ?"
-                                    >
-                                        Supprimer
-                                    </flux:button>
+                                            <flux:menu.item icon="clock" wire:click="extend({{ $account->id }})">
+                                                Prolonger d'une durée de forfait
+                                            </flux:menu.item>
+
+                                            @if ($account->status === HotspotAccountStatus::Suspended)
+                                                <flux:menu.item icon="play" wire:click="reactivate({{ $account->id }})">
+                                                    Réactiver l'accès
+                                                </flux:menu.item>
+                                            @else
+                                                <flux:menu.item icon="pause" variant="danger" wire:click="suspend({{ $account->id }})">
+                                                    Couper l'accès
+                                                </flux:menu.item>
+                                            @endif
+
+                                            <flux:menu.separator />
+
+                                            <flux:menu.item
+                                                icon="trash"
+                                                variant="danger"
+                                                wire:click="delete({{ $account->id }})"
+                                                wire:confirm="Déplacer ce code dans les éléments supprimés ?"
+                                            >
+                                                Supprimer
+                                            </flux:menu.item>
+                                        </flux:menu>
+                                    </flux:dropdown>
                                 </div>
                             </td>
                         </tr>
@@ -296,7 +394,10 @@ new #[Title('Comptes Hotspot')] class extends Component
 
     <flux:modal name="voucher-form" class="max-w-lg">
         <form wire:submit="generateVouchers" class="flex flex-col gap-6">
-            <flux:heading size="lg">Générer des vouchers</flux:heading>
+            <div>
+                <flux:heading size="lg">Créer des codes à imprimer</flux:heading>
+                <flux:text class="mt-1">Chaque code donne accès au WiFi pendant la durée du forfait choisi. Vous pourrez les imprimer juste après.</flux:text>
+            </div>
 
             <flux:field>
                 <flux:label>Forfait</flux:label>
@@ -310,8 +411,9 @@ new #[Title('Comptes Hotspot')] class extends Component
             </flux:field>
 
             <flux:field>
-                <flux:label>Nombre de vouchers</flux:label>
+                <flux:label>Nombre de codes</flux:label>
                 <flux:input type="number" wire:model="voucherQuantity" min="1" max="50" />
+                <flux:description>50 au maximum par lot.</flux:description>
                 <flux:error name="voucherQuantity" />
             </flux:field>
 
@@ -319,7 +421,7 @@ new #[Title('Comptes Hotspot')] class extends Component
                 <flux:modal.close>
                     <flux:button variant="ghost">Annuler</flux:button>
                 </flux:modal.close>
-                <flux:button type="submit" variant="primary">Générer</flux:button>
+                <flux:button type="submit" variant="primary">Créer les codes</flux:button>
             </div>
         </form>
     </flux:modal>

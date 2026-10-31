@@ -34,7 +34,7 @@ new #[Title('Client')] class extends Component
     <div class="flex items-center justify-between gap-4">
         <div class="flex flex-col gap-1">
             <flux:heading size="xl">{{ $customer->email }}</flux:heading>
-            <flux:text class="text-zinc-500">{{ $customer->phone }}</flux:text>
+            <flux:text class="text-[var(--muted-fg)]">{{ $customer->phone }}</flux:text>
         </div>
 
         <flux:button variant="ghost" :href="route('admin.customers.index')" wire:navigate>
@@ -43,43 +43,43 @@ new #[Title('Client')] class extends Component
     </div>
 
     <div class="grid gap-4 sm:grid-cols-3">
-        <div class="flex flex-col gap-1 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-            <flux:text class="text-sm text-zinc-500">Statut</flux:text>
+        <div class="flex flex-col gap-1 console-card p-6">
+            <flux:text class="text-sm text-[var(--muted-fg)]">Statut</flux:text>
             <flux:badge :color="$customer->status->color()" size="sm" class="w-fit">
                 {{ $customer->status->label() }}
             </flux:badge>
         </div>
 
-        <div class="flex flex-col gap-1 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-            <flux:text class="text-sm text-zinc-500">Inscrit le</flux:text>
+        <div class="flex flex-col gap-1 console-card p-6">
+            <flux:text class="text-sm text-[var(--muted-fg)]">Inscrit le</flux:text>
             <flux:heading size="lg">{{ $customer->created_at->translatedFormat('d M Y') }}</flux:heading>
         </div>
 
-        <div class="flex flex-col gap-1 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
-            <flux:text class="text-sm text-zinc-500">Commandes</flux:text>
+        <div class="flex flex-col gap-1 console-card p-6">
+            <flux:text class="text-sm text-[var(--muted-fg)]">Commandes</flux:text>
             <flux:heading size="lg">{{ $orders->total() }}</flux:heading>
         </div>
     </div>
 
-    <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+    <div class="flex flex-col gap-4 console-card p-6">
         <flux:heading size="lg">Commandes</flux:heading>
 
         @if ($orders->isEmpty())
-            <flux:text class="text-zinc-500">Ce client n'a passé aucune commande.</flux:text>
+            <flux:text class="text-[var(--muted-fg)]">Ce client n'a passé aucune commande.</flux:text>
         @else
-            <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <div class="console-table">
                 <table class="w-full text-sm">
-                    <thead class="bg-zinc-50 dark:bg-zinc-900">
+                    <thead>
                         <tr>
-                            <th class="px-4 py-3 text-start font-medium text-zinc-500">Référence</th>
-                            <th class="px-4 py-3 text-start font-medium text-zinc-500">Forfait</th>
-                            <th class="px-4 py-3 text-start font-medium text-zinc-500">Montant</th>
-                            <th class="px-4 py-3 text-start font-medium text-zinc-500">Statut</th>
-                            <th class="px-4 py-3 text-start font-medium text-zinc-500">Code d'accès</th>
-                            <th class="px-4 py-3 text-start font-medium text-zinc-500">Date</th>
+                            <th>Référence</th>
+                            <th>Forfait</th>
+                            <th>Montant</th>
+                            <th>Statut</th>
+                            <th>Code d'accès</th>
+                            <th>Date</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                    <tbody>
                         @foreach ($orders as $order)
                             <tr wire:key="order-{{ $order->id }}">
                                 <td class="px-4 py-3 font-mono">{{ $order->reference }}</td>
@@ -90,8 +90,8 @@ new #[Title('Client')] class extends Component
                                         {{ $order->status->label() }}
                                     </flux:badge>
                                 </td>
-                                <td class="px-4 py-3 font-mono text-zinc-500">{{ $order->hotspotAccount?->code ?? '—' }}</td>
-                                <td class="px-4 py-3 text-zinc-500">{{ $order->created_at->translatedFormat('d M Y à H:i') }}</td>
+                                <td class="px-4 py-3 font-mono text-[var(--muted-fg)]">{{ $order->hotspotAccount?->code ?? '—' }}</td>
+                                <td class="px-4 py-3 text-[var(--muted-fg)]">{{ $order->created_at->translatedFormat('d M Y à H:i') }}</td>
                             </tr>
                         @endforeach
                     </tbody>

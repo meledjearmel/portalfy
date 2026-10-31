@@ -368,3 +368,58 @@ test('extending a voucher uses its own package, since it has no order', function
     expect($account->fresh()->expires_at->timestamp)
         ->toBe($account->expires_at->copy()->addMinutes(120)->timestamp);
 });
+
+test('the origin tabs separate admin-created codes from codes bought by customers', function () {
+    $voucher = HotspotAccount::factory()->voucher()->create(['code' => 'VOUCH2']);
+    $sold = HotspotAccount::factory()->create(['code' => 'SOLD22']);
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->set('origin', 'generes')
+        ->assertSee($voucher->code)
+        ->assertDontSee($sold->code)
+        ->set('origin', 'vendus')
+        ->assertSee($sold->code)
+        ->assertDontSee($voucher->code);
+});
+
+test('generating vouchers offers to print the batch that was just created', function () {
+    MikrotikFake::fake(['/ip/hotspot/profile/print' => []]);
+    $package = Package::factory()->create();
+
+    $component = Livewire::test('pages::admin.hotspot-accounts.index')
+        ->set('voucherPackageId', $package->id)
+        ->set('voucherQuantity', 2)
+        ->call('generateVouchers')
+        ->assertSee('Imprimer ce lot');
+
+    expect($component->get('lastBatchIds'))
+        ->toEqualCanonicalizing(HotspotAccount::query()->whereNull('order_id')->pluck('id')->all());
+});
+
+test('an admin can print admin-created codes but never codes bought by customers', function () {
+    $user = User::factory()->create();
+    $voucher = HotspotAccount::factory()->voucher()->create(['code' => 'PRINT2']);
+    $sold = HotspotAccount::factory()->create(['code' => 'SOLD33']);
+
+    $response = $this->actingAs($user)->get(route('admin.hotspot-accounts.print', ['ids' => [$voucher->id, $sold->id]]));
+
+    $response->assertOk();
+    $response->assertSee('PRINT2');
+    $response->assertDontSee('SOLD33');
+});
+
+test('printing only customer codes is not found', function () {
+    $user = User::factory()->create();
+    $sold = HotspotAccount::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('admin.hotspot-accounts.print', ['ids' => [$sold->id]]))
+        ->assertNotFound();
+});
+
+test('guests cannot print codes', function () {
+    $voucher = HotspotAccount::factory()->voucher()->create();
+
+    $this->get(route('admin.hotspot-accounts.print', ['ids' => [$voucher->id]]))
+        ->assertRedirect(route('admin.login'));
+});

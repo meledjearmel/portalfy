@@ -12,7 +12,7 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-new #[Title('Corbeille')] class extends Component
+new #[Title("Éléments supprimés")] class extends Component
 {
     use WithPagination;
 
@@ -102,7 +102,7 @@ new #[Title('Corbeille')] class extends Component
 
 <div class="flex flex-col gap-6">
     <div class="flex items-center justify-between gap-4">
-        <flux:heading size="xl">Corbeille</flux:heading>
+        <x-admin.page-header title="Éléments supprimés" description="Ce que vous avez supprimé reste ici et peut être restauré." />
 
         <flux:select wire:model.live="model" class="max-w-xs">
             @foreach ($options as $key => $option)
@@ -112,22 +112,22 @@ new #[Title('Corbeille')] class extends Component
     </div>
 
     @if ($items->isEmpty())
-        <flux:text class="text-zinc-500">Rien dans la corbeille pour "{{ $config['label'] }}".</flux:text>
+        <flux:text class="text-[var(--muted-fg)]">Rien dans la corbeille pour "{{ $config['label'] }}".</flux:text>
     @else
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="console-table">
             <table class="w-full text-sm">
-                <thead class="bg-zinc-50 dark:bg-zinc-900">
+                <thead>
                     <tr>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Élément</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Supprimé le</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Actions</th>
+                        <th>Élément</th>
+                        <th>Supprimé le</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <tbody>
                     @foreach ($items as $item)
                         <tr wire:key="trash-{{ $model }}-{{ $item->id }}">
                             <td class="px-4 py-3">{{ ($config['display'])($item) }}</td>
-                            <td class="px-4 py-3 text-zinc-500">{{ $item->deleted_at->translatedFormat('d M Y à H:i') }}</td>
+                            <td class="px-4 py-3 text-[var(--muted-fg)]">{{ $item->deleted_at->translatedFormat('d M Y à H:i') }}</td>
                             <td class="px-4 py-3">
                                 <flux:button size="sm" variant="ghost" wire:click="restore({{ $item->id }})">
                                     Restaurer

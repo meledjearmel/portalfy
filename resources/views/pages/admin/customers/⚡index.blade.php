@@ -10,7 +10,7 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-new #[Title('Clients')] class extends Component
+new #[Title("Clients")] class extends Component
 {
     use WithPagination;
 
@@ -122,7 +122,7 @@ new #[Title('Clients')] class extends Component
 
 <div class="flex flex-col gap-6">
     <div class="flex items-center justify-between gap-4">
-        <flux:heading size="xl">Clients</flux:heading>
+        <x-admin.page-header title="Clients" description="Les personnes qui ont créé un compte sur le portail pour acheter des codes." />
 
         <div class="flex gap-2">
             <flux:input wire:model.live.debounce.300ms="search" placeholder="Rechercher par email ou téléphone..." class="max-w-xs" icon="magnifying-glass" />
@@ -131,21 +131,21 @@ new #[Title('Clients')] class extends Component
     </div>
 
     @if ($customers->isEmpty())
-        <flux:text class="text-zinc-500">Aucun client ne correspond à cette recherche.</flux:text>
+        <flux:text class="text-[var(--muted-fg)]">Aucun client ne correspond à cette recherche.</flux:text>
     @else
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="console-table">
             <table class="w-full text-sm">
-                <thead class="bg-zinc-50 dark:bg-zinc-900">
+                <thead>
                     <tr>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Email</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Téléphone</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Statut</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Commandes</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Inscrit le</th>
-                        <th class="px-4 py-3 text-start font-medium text-zinc-500">Actions</th>
+                        <th>Email</th>
+                        <th>Téléphone</th>
+                        <th>Statut</th>
+                        <th>Commandes</th>
+                        <th>Inscrit le</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <tbody>
                     @foreach ($customers as $customer)
                         <tr wire:key="customer-{{ $customer->id }}">
                             <td class="px-4 py-3">{{ $customer->email }}</td>
@@ -156,7 +156,7 @@ new #[Title('Clients')] class extends Component
                                 </flux:badge>
                             </td>
                             <td class="px-4 py-3">{{ $customer->orders_count }}</td>
-                            <td class="px-4 py-3 text-zinc-500">{{ $customer->created_at->translatedFormat('d M Y') }}</td>
+                            <td class="px-4 py-3 text-[var(--muted-fg)]">{{ $customer->created_at->translatedFormat('d M Y') }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex gap-2">
                                     <flux:button size="sm" variant="ghost" :href="route('admin.customers.show', $customer)" wire:navigate>

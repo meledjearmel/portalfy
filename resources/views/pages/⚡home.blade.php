@@ -53,15 +53,30 @@ new #[Layout('layouts.public')] class extends Component
             <flux:text class="glass-text text-lg opacity-90">{{ $zone->slogan }}</flux:text>
         @endif
 
-        <div class="flex w-full max-w-xs flex-col gap-3">
-            <flux:button :href="route('packages.index')" wire:navigate variant="ghost" class="glass-button w-full">
-                Acheter un accès
-            </flux:button>
+        <form
+            method="get"
+            action="{{ route('hotspot-access.show') }}"
+            x-data="{ code: '' }"
+            class="flex w-full max-w-sm flex-col items-center gap-4"
+        >
+            <flux:text class="glass-text text-sm font-medium opacity-90">Entrez votre code WiFi pour vous connecter</flux:text>
+            <flux:otp length="6" mode="alphanumeric" x-model="code" class="[&_input]:uppercase" autofocus />
+            <input type="hidden" name="code" :value="code.toUpperCase()">
 
-            <flux:button :href="route('hotspot-access.show')" wire:navigate variant="ghost" class="glass-text w-full">
-                J'ai déjà un code
+            <flux:button type="submit" variant="ghost" class="glass-button w-full">
+                Me connecter
             </flux:button>
+        </form>
+
+        <div class="flex w-full max-w-sm items-center gap-3">
+            <span class="h-px flex-1 bg-white/30"></span>
+            <flux:text class="glass-text text-xs opacity-70">Pas encore de code ?</flux:text>
+            <span class="h-px flex-1 bg-white/30"></span>
         </div>
+
+        <flux:button :href="route('packages.index')" wire:navigate variant="ghost" class="glass-text w-full max-w-sm">
+            Acheter un accès
+        </flux:button>
     </div>
 
     <div class="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-4">

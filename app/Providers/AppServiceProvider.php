@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Laravel\Pulse\Pulse;
 use ZillEAli\MikrotikLaravel\MikrotikManager;
 
 class AppServiceProvider extends ServiceProvider
@@ -32,6 +33,31 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureViewComposers();
         $this->configureMikrotikConnection();
+        $this->ignoreUncompilableVendorViews();
+    }
+
+    /**
+     * `php artisan view:cache` (donc `optimize` au déploiement) compile
+     * toutes les vues déclarées par les paquets, et échoue sur deux d'entre
+     * eux dont aucune vue n'est utilisée ici :
+     * - le SDK GeniusPay déclare un dossier de vues absent de son paquet ;
+     * - mikrotik-laravel ne déclare qu'une carte Laravel Pulse, qui ne
+     *   compile pas sans Pulse (composants `pulse::` introuvables).
+     * `booted` garantit de passer après le provider de ces paquets.
+     */
+    protected function ignoreUncompilableVendorViews(): void
+    {
+        $this->app->booted(function (): void {
+            $hints = View::getFinder()->getHints();
+
+            if (isset($hints['geniuspay'])) {
+                View::replaceNamespace('geniuspay', array_values(array_filter($hints['geniuspay'], is_dir(...))));
+            }
+
+            if (isset($hints['mikrotik-laravel']) && ! class_exists(Pulse::class)) {
+                View::replaceNamespace('mikrotik-laravel', []);
+            }
+        });
     }
 
     /**

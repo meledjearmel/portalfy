@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CaptureHotspotContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -28,6 +29,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return $guard === 'customer' ? route('login') : route('admin.login');
         });
+
+        $middleware->web(append: [
+            CaptureHotspotContext::class,
+        ]);
 
         // GeniusPay ne connaît pas notre jeton CSRF : cette route reçoit ses
         // webhooks (voir GeniusPayWebhookController), authentifiés par

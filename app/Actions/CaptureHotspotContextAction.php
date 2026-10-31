@@ -81,10 +81,11 @@ class CaptureHotspotContextAction
     }
 
     /**
-     * `link-login` doit être une URL http(s) dont l'hôte est une IP privée
-     * (le réseau hotspot RouterOS) : jamais un domaine ou une IP publique,
-     * qui permettrait à un lien forgé de faire poster des identifiants vers
-     * un serveur contrôlé par un tiers.
+     * `link-login` doit être une URL http(s) vers le routeur lui-même : soit
+     * une IP privée, soit le nom DNS local du hotspot (`dns-name` RouterOS,
+     * ex. hotspot.rapidnet.lan), que RouterOS met dans link-login dès qu'il
+     * est configuré. Jamais un domaine ou une IP publique, qui permettrait à
+     * un lien forgé d'envoyer des identifiants vers un serveur tiers.
      */
     private function isValidLinkLogin(string $url): bool
     {
@@ -98,7 +99,24 @@ class CaptureHotspotContextAction
             return false;
         }
 
-        return $this->isPrivateIpv4($parts['host']);
+        return $this->isPrivateIpv4($parts['host']) || $this->isLocalHostname($parts['host']);
+    }
+
+    /**
+     * Nom sans domaine public : un seul label (ex. "login") ou une extension
+     * réservée aux réseaux locaux, qu'aucun registre public ne délivre.
+     */
+    private function isLocalHostname(string $host): bool
+    {
+        if (! preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i', $host)) {
+            return false;
+        }
+
+        if (! str_contains($host, '.')) {
+            return true;
+        }
+
+        return (bool) preg_match('/\.(lan|local|home|internal|intranet|localdomain|home\.arpa)$/i', $host);
     }
 
     private function isPrivateIpv4(string $host): bool

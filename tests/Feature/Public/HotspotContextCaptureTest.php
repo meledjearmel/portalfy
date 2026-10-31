@@ -54,7 +54,7 @@ test('a link-login pointing to a public ip is rejected, preventing credential ex
     expect(session(CaptureHotspotContextAction::SESSION_KEY))->toBeNull();
 });
 
-test('a link-login pointing to a domain instead of a private ip is rejected', function () {
+test('a link-login pointing to a public domain is rejected', function () {
     $this->get(route('home', [
         'mac' => '00:1B:44:11:3A:B7',
         'ip' => '192.168.20.50',
@@ -62,6 +62,32 @@ test('a link-login pointing to a domain instead of a private ip is rejected', fu
     ]))->assertOk();
 
     expect(session(CaptureHotspotContextAction::SESSION_KEY))->toBeNull();
+});
+
+test('a link-login using the local hotspot dns name of the router is accepted', function (string $linkLogin) {
+    $this->get(route('home', [
+        'mac' => 'E4:60:17:4F:7A:AE',
+        'ip' => '10.20.0.249',
+        'link-login' => $linkLogin,
+        'link-orig' => 'http://www.msftconnecttest.com/redirect',
+        'error' => '',
+    ]))->assertOk();
+
+    expect(session(CaptureHotspotContextAction::SESSION_KEY.'.link_login'))->toBe($linkLogin);
+})->with([
+    'http://hotspot.rapidnet.lan/login',
+    'http://hotspot.local/login',
+    'http://login/login',
+]);
+
+test('the hotspot context is captured on any portal page, not only the home page', function () {
+    $this->get(route('packages.index', [
+        'mac' => 'E4:60:17:4F:7A:AE',
+        'ip' => '10.20.0.249',
+        'link-login' => 'http://hotspot.rapidnet.lan/login',
+    ]))->assertOk();
+
+    expect(session(CaptureHotspotContextAction::SESSION_KEY.'.mac'))->toBe('E4:60:17:4F:7A:AE');
 });
 
 test('an invalid link-orig is dropped but does not prevent capturing the rest of the context', function () {

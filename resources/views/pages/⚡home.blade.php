@@ -1,6 +1,5 @@
 <?php
 
-use App\Actions\CaptureHotspotContextAction;
 use App\Actions\MapHotspotLoginErrorAction;
 use App\Models\WifiZoneSetting;
 use Illuminate\Http\Request;
@@ -11,13 +10,14 @@ new #[Layout('layouts.public')] class extends Component
 {
     public ?string $loginError = null;
 
+    /**
+     * Le contexte hotspot (mac, ip, link-login…) est capturé pour toutes les
+     * pages par le middleware CaptureHotspotContext.
+     */
     public function mount(
-        CaptureHotspotContextAction $captureHotspotContext,
         MapHotspotLoginErrorAction $mapHotspotLoginError,
         Request $request,
     ): void {
-        $captureHotspotContext->handle($request);
-
         $error = $request->query('error');
 
         if (is_string($error) && $error !== '') {

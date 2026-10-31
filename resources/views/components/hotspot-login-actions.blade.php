@@ -8,31 +8,40 @@
 
 {{--
     Authentifie réellement l'appareil auprès de RouterOS : le navigateur du
-    visiteur doit poster username/password sur `link_login` (l'URL locale du
-    routeur, capturée par CaptureHotspotContextAction), ce que ce serveur ne
-    peut jamais faire à sa place puisqu'il n'est pas sur le réseau hotspot.
+    visiteur doit transmettre username/password à `link_login` (l'URL locale
+    du routeur, capturée par CaptureHotspotContextAction), ce que ce serveur
+    ne peut jamais faire à sa place puisqu'il n'est pas sur le réseau hotspot.
+
+    Redirection de toute la page en GET plutôt qu'un formulaire posté dans
+    une iframe cachée : le portail est servi en https et `link_login` en
+    http, et les navigateurs bloquent sans bruit une iframe http dans une
+    page https (contenu mixte), alors qu'ils laissent passer une navigation
+    de premier niveau. RouterOS accepte ces paramètres en GET si le profil
+    hotspot autorise `http-pap` (login-by).
+
     Sans contexte capturé (visiteur arrivé hors wifi), aucune tentative n'est
     possible : on l'explique à la place plutôt que de deviner une action.
 --}}
-@if ($hotspotContext && $loginCredentials)
-    <div wire:ignore>
-        <iframe name="hotspot-auto-login-frame" class="hidden" aria-hidden="true"></iframe>
-        <form
-            id="hotspot-auto-login-form"
-            method="post"
-            target="hotspot-auto-login-frame"
-            action="{{ $hotspotContext['link_login'] }}"
-        >
-            <input type="hidden" name="username" value="{{ $loginCredentials['username'] }}">
-            <input type="hidden" name="password" value="{{ $loginCredentials['password'] }}">
-            @if ($hotspotContext['link_orig'])
-                <input type="hidden" name="dst" value="{{ $hotspotContext['link_orig'] }}">
-            @endif
-        </form>
-        <script>
-            document.getElementById('hotspot-auto-login-form').submit();
-        </script>
-    </div>
+@php
+    $hotspotLoginUrl = null;
+
+    if ($hotspotContext && $loginCredentials) {
+        $hotspotLoginUrl = $hotspotContext['link_login']
+            .(str_contains($hotspotContext['link_login'], '?') ? '&' : '?')
+            .http_build_query(array_filter([
+                'username' => $loginCredentials['username'],
+                'password' => $loginCredentials['password'],
+                'dst' => $hotspotContext['link_orig'],
+            ]));
+    }
+@endphp
+
+@if ($hotspotLoginUrl)
+    <div
+        data-hotspot-auto-login
+        x-data="{ loginUrl: @js($hotspotLoginUrl) }"
+        x-init="setTimeout(() => window.location.href = loginUrl, 800)"
+    ></div>
 
     <flux:text class="glass-text text-xs opacity-70">
         Connexion automatique au wifi en cours...
@@ -45,11 +54,11 @@
 @endif
 
 <div x-data="{ copied: false }" class="flex w-full flex-col gap-3">
-    @if ($hotspotContext && $loginCredentials)
+    @if ($hotspotLoginUrl)
         <flux:button
+            :href="$hotspotLoginUrl"
             variant="ghost"
             class="glass-button w-full"
-            x-on:click="document.getElementById('hotspot-auto-login-form').submit()"
         >
             Se connecter au WiFi
         </flux:button>

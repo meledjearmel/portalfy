@@ -87,7 +87,7 @@ test('an invalid code shared via link shows the same error as a manually typed o
     $response->assertSee("Ce code n'est pas valide.");
 });
 
-test('with a hotspot context in session, a verified code shows a working connect-to-wifi form', function () {
+test('with a hotspot context in session, a verified code redirects to the router login with the code', function () {
     // hotspotContextSession() est définie dans HotspotAutoLoginTest.php,
     // chargée globalement avec le reste de la suite.
     $account = HotspotAccount::factory()->create(['status' => HotspotAccountStatus::Active]);
@@ -96,8 +96,8 @@ test('with a hotspot context in session, a verified code shows a working connect
         ->get(route('hotspot-access.show', ['code' => $account->code]));
 
     $response->assertOk();
-    $response->assertSee('action="http://192.168.20.1/login"', false);
-    $response->assertSee("name=\"username\" value=\"{$account->code}\"", false);
+    $response->assertSee('data-hotspot-auto-login', false);
+    $response->assertSee("href=\"http://192.168.20.1/login?username={$account->code}&amp;password={$account->code}\"", false);
 });
 
 test('without a hotspot context in session, a verified code shows a manual message instead of a connect form', function () {
@@ -106,7 +106,7 @@ test('without a hotspot context in session, a verified code shows a manual messa
     $response = $this->get(route('hotspot-access.show', ['code' => $account->code]));
 
     $response->assertOk();
-    $response->assertDontSee('hotspot-auto-login-form', false);
+    $response->assertDontSee('data-hotspot-auto-login', false);
     $response->assertSee('Connecte-toi au wifi');
 });
 

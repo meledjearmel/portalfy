@@ -28,10 +28,10 @@ test('without a hotspot context in session, the code is shown with a manual reco
     $response->assertOk();
     $response->assertSee($account->code);
     $response->assertSee("Connecte-toi au wifi {$zone->name}", false);
-    $response->assertDontSee('hotspot-auto-login-form', false);
+    $response->assertDontSee('data-hotspot-auto-login', false);
 });
 
-test('with a valid hotspot context in session, an auto-login form posts the unique code to link-login', function () {
+test('with a valid hotspot context in session, the visitor is redirected to link-login with the unique code', function () {
     $order = Order::factory()->paid()->create();
     $account = HotspotAccount::factory()->create(['order_id' => $order->id, 'secret' => null]);
     WifiZoneSetting::current()->update(['credential_mode' => CredentialMode::Unique]);
@@ -39,13 +39,11 @@ test('with a valid hotspot context in session, an auto-login form posts the uniq
     $response = $this->withSession(hotspotContextSession())->get(route('orders.return', $order));
 
     $response->assertOk();
-    $response->assertSee('action="http://192.168.20.1/login"', false);
-    $response->assertSee("name=\"username\" value=\"{$account->code}\"", false);
-    $response->assertSee("name=\"password\" value=\"{$account->code}\"", false);
-    $response->assertSee('document.getElementById(\'hotspot-auto-login-form\').submit()', false);
+    $response->assertSee('data-hotspot-auto-login', false);
+    $response->assertSee("href=\"http://192.168.20.1/login?username={$account->code}&amp;password={$account->code}\"", false);
 });
 
-test('in separate credential mode, the auto-login form posts the code as username and the secret as password', function () {
+test('in separate credential mode, the code is sent as username and the secret as password', function () {
     $order = Order::factory()->paid()->create();
     WifiZoneSetting::current()->update(['credential_mode' => CredentialMode::Separate]);
     $account = HotspotAccount::factory()->create(['order_id' => $order->id, 'secret' => 'SECRET1']);
@@ -53,11 +51,10 @@ test('in separate credential mode, the auto-login form posts the code as usernam
     $response = $this->withSession(hotspotContextSession())->get(route('orders.return', $order));
 
     $response->assertOk();
-    $response->assertSee("name=\"username\" value=\"{$account->code}\"", false);
-    $response->assertSee('name="password" value="SECRET1"', false);
+    $response->assertSee("href=\"http://192.168.20.1/login?username={$account->code}&amp;password=SECRET1\"", false);
 });
 
-test('link-orig is submitted as the dst field when present', function () {
+test('link-orig is sent as the dst parameter when present', function () {
     $order = Order::factory()->paid()->create();
     HotspotAccount::factory()->create(['order_id' => $order->id]);
 
@@ -65,17 +62,17 @@ test('link-orig is submitted as the dst field when present', function () {
         ->get(route('orders.return', $order));
 
     $response->assertOk();
-    $response->assertSee('name="dst" value="http://example.com/original-page"', false);
+    $response->assertSee('&amp;dst=http%3A%2F%2Fexample.com%2Foriginal-page"', false);
 });
 
-test('without link-orig, no dst field is submitted', function () {
+test('without link-orig, no dst parameter is sent', function () {
     $order = Order::factory()->paid()->create();
     HotspotAccount::factory()->create(['order_id' => $order->id]);
 
     $response = $this->withSession(hotspotContextSession())->get(route('orders.return', $order));
 
     $response->assertOk();
-    $response->assertDontSee('name="dst"', false);
+    $response->assertDontSee('dst=', false);
 });
 
 test('a valid hotspot context does not trigger an auto-login attempt before the hotspot account is provisioned', function () {
@@ -85,5 +82,5 @@ test('a valid hotspot context does not trigger an auto-login attempt before the 
 
     $response->assertOk();
     $response->assertSee('en cours d');
-    $response->assertDontSee('hotspot-auto-login-form', false);
+    $response->assertDontSee('data-hotspot-auto-login', false);
 });

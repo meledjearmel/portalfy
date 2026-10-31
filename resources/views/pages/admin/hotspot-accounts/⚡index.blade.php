@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\CreateHotspotAccountAction;
+use App\Console\Commands\SyncHotspotAccounts;
 use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
 use App\Models\Package;
@@ -197,27 +198,22 @@ new #[Title('Codes WiFi')] class extends Component
     }
 
     /**
-     * Prolonge l'accès de la durée initiale du forfait, à partir de la date
-     * d'expiration actuelle si elle n'est pas encore passée, sinon à partir
-     * de maintenant. Le `limit-uptime` RouterOS est recalculé comme la durée
-     * totale entre l'activation et la nouvelle expiration, pour rester
-     * cohérent avec la valeur posée au provisioning
-     * (ProvisionHotspotAccountAction) : la prolongation locale n'a d'effet
-     * réel que si le routeur reçoit la même nouvelle échéance.
+     * Ajoute la durée du forfait au temps de connexion autorisé par le
+     * routeur (`limit-uptime`, qui ne compte que le temps connecté), et
+     * redonne accès à un code au temps épuisé. Pour un code acheté en ligne,
+     * la date de fin indicative avance d'autant.
      */
     public function extend(HotspotAccount $account): void
     {
         $account->loadMissing('package');
-
-        $base = $account->expires_at?->isFuture() ? $account->expires_at : now();
-        $newExpiresAt = $base->copy()->addMinutes($account->package->duration_minutes);
-
-        $activatedAt = $account->activated_at ?? $account->created_at;
-        $limitUptimeSeconds = $activatedAt->diffInSeconds($newExpiresAt);
+        $durationSeconds = $account->package->duration_minutes * 60;
 
         try {
+            $routerUser = MikroTik::hotspot()->getUser($account->code);
+            $currentLimitSeconds = SyncHotspotAccounts::parseUptime($routerUser['limit-uptime'] ?? '');
+
             MikroTik::hotspot()->updateUser($account->code, [
-                'limit-uptime' => "{$limitUptimeSeconds}s",
+                'limit-uptime' => ($currentLimitSeconds + $durationSeconds).'s',
             ]);
         } catch (\Throwable $e) {
             $this->reportRouterFailure('prolongation', $account, $e);
@@ -225,9 +221,18 @@ new #[Title('Codes WiFi')] class extends Component
             return;
         }
 
-        $account->update(['expires_at' => $newExpiresAt]);
+        if ($account->expires_at !== null) {
+            $base = $account->expires_at->isFuture() ? $account->expires_at : now();
+            $account->expires_at = $base->copy()->addSeconds($durationSeconds);
+        }
 
-        Flux::toast(variant: 'success', text: 'Accès prolongé.');
+        if (in_array($account->status, [HotspotAccountStatus::Used, HotspotAccountStatus::Expired], true)) {
+            $account->status = HotspotAccountStatus::Active;
+        }
+
+        $account->save();
+
+        Flux::toast(variant: 'success', text: 'Temps ajouté.');
     }
 
     private function reportRouterFailure(string $action, HotspotAccount $account, \Throwable $e): void
@@ -388,7 +393,7 @@ new #[Title('Codes WiFi')] class extends Component
                         <th>Forfait</th>
                         <th>Origine</th>
                         <th>État</th>
-                        <th>Fin de l'accès</th>
+                        <th>Utilisation</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -418,7 +423,9 @@ new #[Title('Codes WiFi')] class extends Component
                             </td>
                             <td class="text-[var(--muted-fg)]">
                                 @if ($account->activated_at === null && $account->isVoucher())
-                                    Démarre à la 1re connexion
+                                    Jamais connecté
+                                @elseif ($account->isVoucher())
+                                    Entamé le {{ $account->activated_at->translatedFormat('d M Y à H:i') }}
                                 @else
                                     {{ $account->expires_at?->translatedFormat('d M Y à H:i') ?? '—' }}
                                 @endif
@@ -431,7 +438,7 @@ new #[Title('Codes WiFi')] class extends Component
                                         <flux:menu>
                                             @if ($account->activated_at !== null)
                                                 <flux:menu.item icon="clock" wire:click="extend({{ $account->id }})">
-                                                    Prolonger d'une durée de forfait
+                                                    Ajouter une durée de forfait
                                                 </flux:menu.item>
                                             @endif
 

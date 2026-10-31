@@ -93,8 +93,9 @@ class HotspotAccount extends Model
     }
 
     /**
-     * Un code jamais connecté n'a pas encore de date de fin : son accès
-     * démarre seulement maintenant, pour la durée de son forfait.
+     * Note la première connexion d'un code. Aucune date de fin n'est posée :
+     * le routeur décompte seul le temps connecté (`limit-uptime`), un code
+     * entamé reste donc utilisable plus tard tant qu'il lui reste du temps.
      */
     public function activateOnFirstUse(): void
     {
@@ -102,12 +103,7 @@ class HotspotAccount extends Model
             return;
         }
 
-        $this->loadMissing('package');
-
-        $this->update([
-            'activated_at' => now(),
-            'expires_at' => now()->addMinutes($this->package->duration_minutes),
-        ]);
+        $this->update(['activated_at' => now()]);
     }
 
     public function isUnused(): bool

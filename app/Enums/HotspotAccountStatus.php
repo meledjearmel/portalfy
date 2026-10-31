@@ -16,7 +16,7 @@ enum HotspotAccountStatus: string
     {
         return match ($this) {
             self::Active => 'Actif',
-            self::Used => 'Utilisé',
+            self::Used => 'Temps épuisé',
             self::Expired => 'Expiré',
             self::Suspended => 'Suspendu',
         };

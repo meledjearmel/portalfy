@@ -370,6 +370,26 @@ test('extending a voucher uses its own package, since it has no order', function
         ->toBe($account->expires_at->copy()->addMinutes(120)->timestamp);
 });
 
+test('extending adds the package duration to the connection time left on the router and reopens an exhausted code', function () {
+    $hotspot = Mockery::mock(HotspotManager::class);
+    $hotspot->shouldReceive('getUser')->andReturn(['name' => 'DONE22', 'limit-uptime' => '1h']);
+    $hotspot->shouldReceive('updateUser')->once()->with('DONE22', ['limit-uptime' => '7200s']);
+    MikroTik::shouldReceive('hotspot')->andReturn($hotspot);
+
+    $package = Package::factory()->create(['duration_minutes' => 60]);
+    $account = HotspotAccount::factory()->voucher()->used()->create([
+        'code' => 'DONE22',
+        'package_id' => $package->id,
+        'activated_at' => now()->subDay(),
+    ]);
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->call('extend', $account->id);
+
+    expect($account->fresh()->status)->toBe(HotspotAccountStatus::Active)
+        ->and($account->fresh()->expires_at)->toBeNull();
+});
+
 test('the origin tabs separate admin-created codes from codes bought by customers', function () {
     $voucher = HotspotAccount::factory()->voucher()->create(['code' => 'VOUCH2']);
     $sold = HotspotAccount::factory()->create(['code' => 'SOLD22']);

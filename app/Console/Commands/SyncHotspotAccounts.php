@@ -8,38 +8,28 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use ZillEAli\MikrotikLaravel\Exceptions\ResourceNotFoundException;
 use ZillEAli\MikrotikLaravel\Facades\MikroTik;
 
 #[Signature('app:sync-hotspot-accounts')]
-#[Description('Démarre les codes connectés pour la première fois et coupe ceux dont la durée est écoulée.')]
+#[Description('Reporte dans l\'admin les codes entamés et épuisés d\'après le temps consommé sur le routeur.')]
 class SyncHotspotAccounts extends Command
 {
     /**
-     * Execute the console command.
+     * Le routeur décompte seul le temps de chaque code (`limit-uptime`,
+     * temps connecté uniquement : 20 min aujourd'hui, la suite demain) et
+     * bloque un code épuisé. Cette tâche ne coupe donc jamais rien : elle
+     * reflète seulement l'`uptime` RouterOS en local, y compris pour un code
+     * saisi directement sur la page de connexion MikroTik sans passer par le
+     * portail.
      */
     public function handle(): void
     {
-        $this->startCodesUsedOnRouter();
-        $this->expireFinishedCodes();
-    }
-
-    /**
-     * Un code peut être saisi directement sur la page de connexion MikroTik,
-     * sans passer par le portail (HotspotAccount::activateOnFirstUse) :
-     * l'`uptime` RouterOS, qui ne compte que le temps connecté, est alors le
-     * seul signe de sa première connexion.
-     */
-    private function startCodesUsedOnRouter(): void
-    {
-        $pending = HotspotAccount::query()
-            ->with('package')
+        $accounts = HotspotAccount::query()
             ->where('status', HotspotAccountStatus::Active)
-            ->whereNull('activated_at')
             ->get()
             ->keyBy('code');
 
-        if ($pending->isEmpty()) {
+        if ($accounts->isEmpty()) {
             return;
         }
 
@@ -52,57 +42,24 @@ class SyncHotspotAccounts extends Command
         }
 
         foreach ($routerUsers as $routerUser) {
-            $account = $pending->get($routerUser['name'] ?? '');
+            $account = $accounts->get($routerUser['name'] ?? '');
             $uptimeSeconds = self::parseUptime($routerUser['uptime'] ?? '0s');
 
             if (! $account || $uptimeSeconds === 0) {
                 continue;
             }
 
-            $activatedAt = now()->subSeconds($uptimeSeconds);
-
-            $account->update([
-                'activated_at' => $activatedAt,
-                'expires_at' => $activatedAt->addMinutes($account->package->duration_minutes),
-            ]);
-        }
-    }
-
-    /**
-     * `limit-uptime` ne compte que le temps connecté : sans cette coupure,
-     * un code d'une heure entamé puis laissé de côté resterait utilisable
-     * indéfiniment. Le routeur est coupé d'abord, le statut local ensuite,
-     * jamais l'inverse (voir la suspension dans l'admin).
-     */
-    private function expireFinishedCodes(): void
-    {
-        $finished = HotspotAccount::query()
-            ->where('status', HotspotAccountStatus::Active)
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '<=', now())
-            ->get();
-
-        foreach ($finished as $account) {
-            try {
-                MikroTik::hotspot()->disableUser($account->code);
-            } catch (ResourceNotFoundException) {
-                // Déjà absent du routeur : rien à couper.
-            } catch (\Throwable $e) {
-                Log::warning('RouterOS: coupure d\'un code expiré impossible, nouvel essai au prochain passage', [
-                    'hotspot_account_id' => $account->id,
-                    'error' => $e->getMessage(),
-                ]);
-
-                continue;
+            if ($account->activated_at === null) {
+                $account->activated_at = now()->subSeconds($uptimeSeconds);
             }
 
-            try {
-                MikroTik::hotspot()->kickHost($account->code);
-            } catch (\Throwable) {
-                // Pas de session en cours : le compte désactivé suffit.
+            $limitSeconds = self::parseUptime($routerUser['limit-uptime'] ?? '');
+
+            if ($limitSeconds > 0 && $uptimeSeconds >= $limitSeconds) {
+                $account->status = HotspotAccountStatus::Used;
             }
 
-            $account->update(['status' => HotspotAccountStatus::Expired]);
+            $account->save();
         }
     }
 

@@ -4,7 +4,6 @@ use App\Console\Commands\SyncHotspotAccounts;
 use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
 use ZillEAli\MikrotikLaravel\Exceptions\ApiException;
-use ZillEAli\MikrotikLaravel\Exceptions\ResourceNotFoundException;
 use ZillEAli\MikrotikLaravel\Facades\MikroTik;
 use ZillEAli\MikrotikLaravel\Services\HotspotManager;
 
@@ -16,55 +15,58 @@ function mockHotspot(): HotspotManager
     return $hotspot;
 }
 
-test('a code used directly on the router starts when its first connection happened', function () {
+test('a code used directly on the router is marked as started, without any end date', function () {
     $this->travelTo(now()->startOfMinute());
     $account = HotspotAccount::factory()->voucher()->create(['code' => 'ROUTE2']);
-    $account->package->update(['duration_minutes' => 60]);
     $untouched = HotspotAccount::factory()->voucher()->create(['code' => 'WAIT22']);
 
     mockHotspot()->shouldReceive('getUsers')->andReturn([
-        ['name' => 'ROUTE2', 'uptime' => '10m'],
-        ['name' => 'WAIT22', 'uptime' => '0s'],
+        ['name' => 'ROUTE2', 'uptime' => '10m', 'limit-uptime' => '1h'],
+        ['name' => 'WAIT22', 'uptime' => '0s', 'limit-uptime' => '1h'],
     ]);
 
     $this->artisan(SyncHotspotAccounts::class)->assertSuccessful();
 
     expect($account->fresh()->activated_at->toDateTimeString())->toBe(now()->subMinutes(10)->toDateTimeString())
-        ->and($account->fresh()->expires_at->toDateTimeString())->toBe(now()->addMinutes(50)->toDateTimeString())
+        ->and($account->fresh()->expires_at)->toBeNull()
+        ->and($account->fresh()->status)->toBe(HotspotAccountStatus::Active)
         ->and($untouched->fresh()->activated_at)->toBeNull();
 });
 
-test('a code whose duration has elapsed is cut on the router then marked expired', function () {
-    $account = HotspotAccount::factory()->create(['expires_at' => now()->subMinute()]);
+test('a code that has consumed all its connection time is marked as exhausted', function () {
+    $account = HotspotAccount::factory()->voucher()->create(['code' => 'DONE22', 'activated_at' => now()->subDay()]);
 
-    $hotspot = mockHotspot();
-    $hotspot->shouldReceive('disableUser')->once()->with($account->code);
-    $hotspot->shouldReceive('kickHost')->once()->andThrow(new ResourceNotFoundException('aucune session'));
+    mockHotspot()->shouldReceive('getUsers')->andReturn([
+        ['name' => 'DONE22', 'uptime' => '1h', 'limit-uptime' => '1h'],
+    ]);
 
     $this->artisan(SyncHotspotAccounts::class)->assertSuccessful();
 
-    expect($account->fresh()->status)->toBe(HotspotAccountStatus::Expired);
+    expect($account->fresh()->status)->toBe(HotspotAccountStatus::Used);
 });
 
-test('an elapsed code stays active locally when the router cannot cut it', function () {
-    $account = HotspotAccount::factory()->create(['expires_at' => now()->subMinute()]);
+test('a started code is never cut because of elapsed wall-clock time', function () {
+    $account = HotspotAccount::factory()->create(['expires_at' => now()->subDay()]);
 
-    mockHotspot()->shouldReceive('disableUser')->andThrow(new ApiException('injoignable'));
+    $hotspot = mockHotspot();
+    $hotspot->shouldReceive('getUsers')->andReturn([
+        ['name' => $account->code, 'uptime' => '20m', 'limit-uptime' => '1h'],
+    ]);
+    $hotspot->shouldNotReceive('disableUser');
 
     $this->artisan(SyncHotspotAccounts::class)->assertSuccessful();
 
     expect($account->fresh()->status)->toBe(HotspotAccountStatus::Active);
 });
 
-test('codes that have not started or are still running are left alone', function () {
-    HotspotAccount::factory()->voucher()->create();
-    HotspotAccount::factory()->create(['expires_at' => now()->addHour()]);
+test('an unreachable router leaves every code unchanged', function () {
+    $account = HotspotAccount::factory()->voucher()->create();
 
-    $hotspot = mockHotspot();
-    $hotspot->shouldReceive('getUsers')->andReturn([]);
-    $hotspot->shouldNotReceive('disableUser');
+    mockHotspot()->shouldReceive('getUsers')->andThrow(new ApiException('injoignable'));
 
     $this->artisan(SyncHotspotAccounts::class)->assertSuccessful();
+
+    expect($account->fresh()->activated_at)->toBeNull();
 });
 
 test('router uptimes are converted to seconds', function (string $uptime, int $seconds) {

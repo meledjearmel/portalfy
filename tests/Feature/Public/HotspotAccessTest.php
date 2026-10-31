@@ -3,6 +3,67 @@
 use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
 use Livewire\Livewire;
+use ZillEAli\MikrotikLaravel\Exceptions\ApiException;
+use ZillEAli\MikrotikLaravel\Facades\MikroTik;
+use ZillEAli\MikrotikLaravel\Services\HotspotManager;
+use ZillEAli\MikrotikLaravel\Testing\MikrotikFake;
+
+// Par défaut, le routeur connaît le code et lui laisse du temps : le
+// FakeRouterosClient ignore le filtre par nom et renvoie cette ligne.
+beforeEach(fn () => MikrotikFake::fake([
+    '/ip/hotspot/user/print' => [['.id' => '*1', 'name' => 'ANY', 'disabled' => 'false', 'uptime' => '0s', 'limit-uptime' => '1h']],
+]));
+
+function routerReturnsUser(?array $routerUser): void
+{
+    MikrotikFake::fake(['/ip/hotspot/user/print' => $routerUser ? [$routerUser] : []]);
+}
+
+test('a code known here but deleted on the router is rejected', function () {
+    $account = HotspotAccount::factory()->voucher()->create();
+    routerReturnsUser(null);
+
+    Livewire::test('pages::hotspot-access.show')
+        ->set('code', $account->code)
+        ->call('verify')
+        ->assertHasErrors(['code' => "Ce code n'est pas valide."]);
+});
+
+test('a code disabled on the router is rejected', function () {
+    $account = HotspotAccount::factory()->voucher()->create();
+    routerReturnsUser(['name' => $account->code, 'disabled' => 'true']);
+
+    Livewire::test('pages::hotspot-access.show')
+        ->set('code', $account->code)
+        ->call('verify')
+        ->assertHasErrors(['code' => 'Cet accès a été suspendu.']);
+});
+
+test('a code whose time is exhausted on the router is rejected', function () {
+    $account = HotspotAccount::factory()->voucher()->create();
+    routerReturnsUser(['name' => $account->code, 'uptime' => '1h', 'limit-uptime' => '1h']);
+
+    Livewire::test('pages::hotspot-access.show')
+        ->set('code', $account->code)
+        ->call('verify')
+        ->assertHasErrors(['code' => 'Le temps de ce code est épuisé.']);
+
+    expect($account->fresh()->activated_at)->toBeNull();
+});
+
+test('a code is not accepted while the router cannot be reached', function () {
+    $account = HotspotAccount::factory()->voucher()->create();
+    $hotspot = Mockery::mock(HotspotManager::class);
+    $hotspot->shouldReceive('getUser')->andThrow(new ApiException('injoignable'));
+    $manager = Mockery::mock();
+    $manager->shouldReceive('hotspot')->andReturn($hotspot);
+    MikroTik::swap($manager);
+
+    Livewire::test('pages::hotspot-access.show')
+        ->set('code', $account->code)
+        ->call('verify')
+        ->assertHasErrors(['code' => 'Le réseau WiFi ne répond pas pour le moment. Réessayez dans un instant.']);
+});
 
 test('a code that is not 6 characters long fails validation', function () {
     Livewire::test('pages::hotspot-access.show')

@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\CaptureHotspotContextAction;
+use App\Actions\CheckCodeOnRouterAction;
 use App\Actions\ResolveHotspotLoginCredentialsAction;
 use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
@@ -58,6 +59,14 @@ new #[Layout('layouts.public')] #[Title("J'ai déjà un code")] class extends Co
 
         if ($message !== null) {
             $this->addError('code', $message);
+
+            return;
+        }
+
+        $routerError = app(CheckCodeOnRouterAction::class)->handle($account);
+
+        if ($routerError !== null) {
+            $this->addError('code', $routerError);
 
             return;
         }

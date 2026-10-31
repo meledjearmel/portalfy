@@ -16,10 +16,10 @@ echo "→ Dépendances PHP"
 composer install --no-dev --optimize-autoloader --no-interaction
 
 echo "→ Dépendances Node"
-pnpm install --frozen-lockfile
+bun install --frozen-lockfile
 
 echo "→ Build des assets"
-pnpm run build
+bun run build
 
 echo "→ Base de données"
 php artisan migrate --force

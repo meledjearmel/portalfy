@@ -7,6 +7,7 @@ use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
 use App\Models\Order;
 use App\Models\Package;
+use App\Models\VoucherBatch;
 use App\Models\WifiZoneSetting;
 use Illuminate\Support\Facades\Log;
 use ZillEAli\MikrotikLaravel\Facades\MikroTik;
@@ -34,7 +35,7 @@ class CreateHotspotAccountAction
      * à un voucher admin (on ne veut pas qu'un routeur injoignable fasse
      * planter une génération en lot).
      */
-    public function handle(Package $package, ?Order $order = null, ?string $comment = null): ?HotspotAccount
+    public function handle(Package $package, ?Order $order = null, ?string $comment = null, ?VoucherBatch $batch = null): ?HotspotAccount
     {
         $zone = WifiZoneSetting::current();
 
@@ -63,6 +64,7 @@ class CreateHotspotAccountAction
             $account = HotspotAccount::create([
                 'order_id' => $order?->id,
                 'package_id' => $package->id,
+                'voucher_batch_id' => $batch?->id,
                 'code' => $code,
                 'secret' => $secret,
                 'status' => HotspotAccountStatus::Active,

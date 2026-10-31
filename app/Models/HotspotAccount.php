@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int|null $order_id
  * @property int|null $package_id
+ * @property int|null $voucher_batch_id
  * @property string $code
  * @property string|null $secret
  * @property HotspotAccountStatus $status
@@ -27,7 +28,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  */
-#[Fillable(['order_id', 'package_id', 'code', 'secret', 'status', 'activated_at', 'expires_at'])]
+#[Fillable(['order_id', 'package_id', 'voucher_batch_id', 'code', 'secret', 'status', 'activated_at', 'expires_at'])]
 #[Hidden(['secret'])]
 class HotspotAccount extends Model
 {
@@ -69,6 +70,17 @@ class HotspotAccount extends Model
     public function package(): BelongsTo
     {
         return $this->belongsTo(Package::class);
+    }
+
+    /**
+     * Lot de création d'un voucher admin, null pour un code acheté en ligne
+     * ou un voucher créé avant l'introduction des lots.
+     *
+     * @return BelongsTo<VoucherBatch, $this>
+     */
+    public function voucherBatch(): BelongsTo
+    {
+        return $this->belongsTo(VoucherBatch::class);
     }
 
     /**

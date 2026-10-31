@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
 use App\Models\WifiZoneSetting;
 use Illuminate\Http\Request;
@@ -10,28 +11,37 @@ use Illuminate\View\View;
 class PrintHotspotAccountsController extends Controller
 {
     /**
-     * Planche de tickets à découper pour les codes créés par l'admin.
-     * Les codes achetés en ligne sont exclus : ils appartiennent déjà à un
-     * client et n'ont pas vocation à être revendus sur papier.
+     * Feuilles A4 de tickets à découper (15 par feuille, 3 × 5), pour un lot
+     * entier (`lot`) ou une sélection de codes (`ids`). Seuls les codes créés
+     * par l'admin et jamais utilisés sont imprimés : un code acheté en ligne
+     * appartient déjà à un client, et un code utilisé, expiré ou suspendu ne
+     * doit pas être revendu sur papier.
      */
     public function __invoke(Request $request): View
     {
         $validated = $request->validate([
-            'ids' => ['required', 'array', 'max:200'],
+            'lot' => ['required_without:ids', 'integer'],
+            'ids' => ['required_without:lot', 'array', 'max:500'],
             'ids.*' => ['integer'],
         ]);
 
         $accounts = HotspotAccount::query()
             ->with('package')
             ->whereNull('order_id')
-            ->whereIn('id', $validated['ids'])
+            ->where('status', HotspotAccountStatus::Active)
+            ->when(
+                isset($validated['lot']),
+                fn ($query) => $query->where('voucher_batch_id', $validated['lot']),
+                fn ($query) => $query->whereIn('id', $validated['ids']),
+            )
             ->orderBy('id')
             ->get();
 
         abort_if($accounts->isEmpty(), 404);
 
         return view('admin.print-hotspot-accounts', [
-            'accounts' => $accounts,
+            'sheets' => $accounts->chunk(15),
+            'total' => $accounts->count(),
             'zone' => WifiZoneSetting::current(),
         ]);
     }

@@ -4,7 +4,9 @@ use App\Actions\CreateHotspotAccountAction;
 use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
 use App\Models\Package;
+use App\Models\VoucherBatch;
 use Flux\Flux;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -28,15 +30,17 @@ new #[Title('Codes WiFi')] class extends Component
     #[Url(as: 'origine')]
     public string $origin = '';
 
-    /** @var array<int, string> */
+    /**
+     * Codes jamais utilisés cochés pour l'impression.
+     *
+     * @var array<int, string>
+     */
     public array $selected = [];
 
     /**
-     * Codes du dernier lot généré, proposés à l'impression juste après.
-     *
-     * @var array<int, int>
+     * Dernier lot créé, proposé à l'impression juste après sa création.
      */
-    public array $lastBatchIds = [];
+    public ?int $lastBatchId = null;
 
     #[Validate('required|exists:packages,id')]
     public ?int $voucherPackageId = null;
@@ -47,6 +51,21 @@ new #[Title('Codes WiFi')] class extends Component
     public function updatedSearch(): void
     {
         $this->resetPage();
+    }
+
+    /**
+     * Coche les codes créés par l'admin et jamais utilisés de la page en
+     * cours, en gardant ceux déjà cochés sur d'autres pages.
+     */
+    public function selectUnusedOnPage(): void
+    {
+        $pageIds = $this->accountsQuery()
+            ->paginate(15)
+            ->getCollection()
+            ->filter(fn (HotspotAccount $account): bool => $account->isVoucher() && $account->status === HotspotAccountStatus::Active)
+            ->map(fn (HotspotAccount $account): string => (string) $account->id);
+
+        $this->selected = collect($this->selected)->merge($pageIds)->unique()->values()->all();
     }
 
     public function updatedOrigin(): void
@@ -79,18 +98,25 @@ new #[Title('Codes WiFi')] class extends Component
 
         $package = Package::findOrFail($this->voucherPackageId);
         $action = new CreateHotspotAccountAction;
+        $batch = VoucherBatch::create(['package_id' => $package->id, 'quantity' => 0]);
 
-        $this->lastBatchIds = [];
+        $created = 0;
 
         for ($i = 0; $i < $this->voucherQuantity; $i++) {
-            if ($account = $action->handle($package)) {
-                $this->lastBatchIds[] = $account->id;
+            if ($action->handle($package, batch: $batch)) {
+                $created++;
             }
         }
 
-        $created = count($this->lastBatchIds);
-
         Flux::modal('voucher-form')->close();
+
+        if ($created === 0) {
+            $batch->delete();
+            $this->lastBatchId = null;
+        } else {
+            $batch->update(['quantity' => $created]);
+            $this->lastBatchId = $batch->id;
+        }
 
         if ($created === $this->voucherQuantity) {
             Flux::toast(variant: 'success', text: "{$created} code(s) créé(s), prêts à imprimer.");
@@ -215,26 +241,42 @@ new #[Title('Codes WiFi')] class extends Component
         Flux::toast(variant: 'danger', text: "Impossible de contacter le routeur pour l'instant. Réessayez dans un instant.");
     }
 
+    /**
+     * @return Builder<HotspotAccount>
+     */
+    private function accountsQuery(): Builder
+    {
+        return HotspotAccount::query()
+            ->with(['package', 'order.customer'])
+            ->when($this->origin === 'generes', fn ($query) => $query->whereNull('order_id'))
+            ->when($this->origin === 'vendus', fn ($query) => $query->whereNotNull('order_id'))
+            ->when($this->search !== '', function ($query) {
+                $term = "%{$this->search}%";
+
+                $query->where(function ($inner) use ($term) {
+                    $inner->where('code', 'like', $term)
+                        ->orWhereHas('package', fn ($q) => $q->where('name', 'like', $term))
+                        ->orWhereHas('order', fn ($q) => $q->where('phone', 'like', $term)
+                            ->orWhereHas('customer', fn ($cq) => $cq->where('email', 'like', $term)));
+                });
+            })
+            ->latest()
+            ->latest('id');
+    }
+
     public function with(): array
     {
         return [
-            'accounts' => HotspotAccount::query()
-                ->with(['package', 'order.customer'])
-                ->when($this->origin === 'generes', fn ($query) => $query->whereNull('order_id'))
-                ->when($this->origin === 'vendus', fn ($query) => $query->whereNotNull('order_id'))
-                ->when($this->search !== '', function ($query) {
-                    $term = "%{$this->search}%";
-
-                    $query->where(function ($inner) use ($term) {
-                        $inner->where('code', 'like', $term)
-                            ->orWhereHas('package', fn ($q) => $q->where('name', 'like', $term))
-                            ->orWhereHas('order', fn ($q) => $q->where('phone', 'like', $term)
-                                ->orWhereHas('customer', fn ($cq) => $cq->where('email', 'like', $term)));
-                    });
-                })
-                ->latest()
-                ->paginate(15),
+            'accounts' => $this->accountsQuery()->paginate(15),
             'packages' => Package::query()->active()->ordered()->get(),
+            'batches' => $this->origin === 'generes'
+                ? VoucherBatch::query()
+                    ->with('package')
+                    ->withCount(['hotspotAccounts as unused_count' => fn ($query) => $query->where('status', HotspotAccountStatus::Active)])
+                    ->latest()
+                    ->limit(6)
+                    ->get()
+                : collect(),
         ];
     }
 };
@@ -248,16 +290,16 @@ new #[Title('Codes WiFi')] class extends Component
         <flux:button variant="primary" icon="plus" wire:click="openVoucherModal">Créer des codes à imprimer</flux:button>
     </x-admin.page-header>
 
-    @if ($lastBatchIds !== [])
+    @if ($lastBatchId)
         <div class="console-card flex flex-wrap items-center justify-between gap-4 p-5">
             <div>
-                <flux:heading>{{ count($lastBatchIds) }} code(s) viennent d'être créés</flux:heading>
-                <flux:text>Imprimez-les maintenant pour les découper et les distribuer.</flux:text>
+                <flux:heading>Votre lot de codes est prêt</flux:heading>
+                <flux:text>Imprimez-le maintenant (15 codes par feuille), ou plus tard depuis « Créés par moi ».</flux:text>
             </div>
             <flux:button
                 variant="primary"
                 icon="printer"
-                :href="route('admin.hotspot-accounts.print', ['ids' => $lastBatchIds])"
+                :href="route('admin.hotspot-accounts.print', ['lot' => $lastBatchId])"
                 target="_blank"
             >
                 Imprimer ce lot
@@ -283,6 +325,12 @@ new #[Title('Codes WiFi')] class extends Component
         <div class="flex flex-wrap items-center gap-2">
             <flux:input wire:model.live.debounce.300ms="search" placeholder="Code, forfait, email ou téléphone…" class="sm:w-72" icon="magnifying-glass" />
 
+            @if ($origin === 'generes')
+                <flux:button wire:click="selectUnusedOnPage" icon="check-circle">
+                    Cocher les non utilisés
+                </flux:button>
+            @endif
+
             @if ($origin === 'generes' && $selected !== [])
                 <flux:button
                     variant="primary"
@@ -295,6 +343,32 @@ new #[Title('Codes WiFi')] class extends Component
             @endif
         </div>
     </div>
+
+    @if ($batches->isNotEmpty())
+        <div class="flex flex-col gap-3">
+            <flux:heading>Mes lots</flux:heading>
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                @foreach ($batches as $batch)
+                    <div wire:key="batch-{{ $batch->id }}" class="console-card flex items-center justify-between gap-3 p-4">
+                        <div class="min-w-0">
+                            <p class="truncate font-semibold">{{ $batch->quantity }} × {{ $batch->package?->name ?? 'Forfait supprimé' }}</p>
+                            <p class="text-xs text-[var(--muted-fg)]">
+                                Créé le {{ $batch->created_at->translatedFormat('d M Y à H:i') }} · {{ $batch->unused_count }} non utilisé(s)
+                            </p>
+                        </div>
+                        <flux:button
+                            size="sm"
+                            icon="printer"
+                            :href="route('admin.hotspot-accounts.print', ['lot' => $batch->id])"
+                            target="_blank"
+                        >
+                            Imprimer
+                        </flux:button>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
 
     @if ($accounts->isEmpty())
         <div class="console-card p-10 text-center">
@@ -323,7 +397,9 @@ new #[Title('Codes WiFi')] class extends Component
                         <tr wire:key="account-{{ $account->id }}">
                             @if ($origin === 'generes')
                                 <td>
-                                    <flux:checkbox wire:model.live="selected" value="{{ $account->id }}" />
+                                    @if ($account->status === HotspotAccountStatus::Active)
+                                        <flux:checkbox wire:model.live="selected" value="{{ $account->id }}" />
+                                    @endif
                                 </td>
                             @endif
                             <td class="font-mono font-semibold tracking-wider">{{ $account->code }}</td>
@@ -349,12 +425,6 @@ new #[Title('Codes WiFi')] class extends Component
                                         <flux:button size="sm" variant="ghost" icon="ellipsis-horizontal" aria-label="Actions" />
 
                                         <flux:menu>
-                                            @if ($account->isVoucher())
-                                                <flux:menu.item icon="printer" :href="route('admin.hotspot-accounts.print', ['ids' => [$account->id]])" target="_blank">
-                                                    Imprimer
-                                                </flux:menu.item>
-                                            @endif
-
                                             <flux:menu.item icon="clock" wire:click="extend({{ $account->id }})">
                                                 Prolonger d'une durée de forfait
                                             </flux:menu.item>

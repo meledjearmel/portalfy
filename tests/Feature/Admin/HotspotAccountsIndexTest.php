@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Package;
 use App\Models\RouterSetting;
 use App\Models\User;
+use App\Models\VoucherBatch;
 use Livewire\Livewire;
 use ZillEAli\MikrotikLaravel\Exceptions\ApiException;
 use ZillEAli\MikrotikLaravel\Exceptions\ResourceNotFoundException;
@@ -382,7 +383,7 @@ test('the origin tabs separate admin-created codes from codes bought by customer
         ->assertDontSee($voucher->code);
 });
 
-test('generating vouchers offers to print the batch that was just created', function () {
+test('generating vouchers groups them in a batch that can be printed', function () {
     MikrotikFake::fake(['/ip/hotspot/profile/print' => []]);
     $package = Package::factory()->create();
 
@@ -392,8 +393,51 @@ test('generating vouchers offers to print the batch that was just created', func
         ->call('generateVouchers')
         ->assertSee('Imprimer ce lot');
 
-    expect($component->get('lastBatchIds'))
-        ->toEqualCanonicalizing(HotspotAccount::query()->whereNull('order_id')->pluck('id')->all());
+    $batch = VoucherBatch::sole();
+
+    expect($batch->quantity)->toBe(2)
+        ->and($batch->hotspotAccounts()->count())->toBe(2)
+        ->and($component->get('lastBatchId'))->toBe($batch->id);
+});
+
+test('no batch is kept when the router refuses every voucher', function () {
+    $hotspot = Mockery::mock(HotspotManager::class);
+    $hotspot->shouldReceive('createUser')->andThrow(new ApiException('injoignable'));
+    MikroTik::shouldReceive('hotspot')->andReturn($hotspot);
+    $package = Package::factory()->create();
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->set('voucherPackageId', $package->id)
+        ->set('voucherQuantity', 2)
+        ->call('generateVouchers')
+        ->assertSet('lastBatchId', null);
+
+    expect(VoucherBatch::count())->toBe(0);
+});
+
+test('a batch prints only its never-used codes, 15 per sheet', function () {
+    $user = User::factory()->create();
+    $batch = VoucherBatch::factory()->create();
+    HotspotAccount::factory()->voucher()->count(16)->create(['voucher_batch_id' => $batch->id, 'package_id' => $batch->package_id]);
+    HotspotAccount::factory()->voucher()->used()->create(['voucher_batch_id' => $batch->id, 'code' => 'USED22']);
+    HotspotAccount::factory()->voucher()->create(['code' => 'OTHER2']);
+
+    $response = $this->actingAs($user)->get(route('admin.hotspot-accounts.print', ['lot' => $batch->id]));
+
+    $response->assertOk();
+    $response->assertSee('16 code(s) · 2 feuille(s)');
+    $response->assertDontSee('USED22');
+    $response->assertDontSee('OTHER2');
+});
+
+test('selecting unused codes checks only active admin-created codes of the page', function () {
+    $unused = HotspotAccount::factory()->voucher()->create();
+    HotspotAccount::factory()->voucher()->used()->create();
+
+    Livewire::test('pages::admin.hotspot-accounts.index')
+        ->set('origin', 'generes')
+        ->call('selectUnusedOnPage')
+        ->assertSet('selected', [(string) $unused->id]);
 });
 
 test('an admin can print admin-created codes but never codes bought by customers', function () {

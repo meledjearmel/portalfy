@@ -60,7 +60,7 @@ new #[Layout('layouts.public')] class extends Component
             class="flex w-full max-w-sm flex-col items-center gap-4"
         >
             <flux:text class="glass-text text-sm font-medium opacity-90">Entrez votre code WiFi pour vous connecter</flux:text>
-            <flux:otp length="6" mode="alphanumeric" x-model="code" class="[&_input]:uppercase" autofocus />
+            <flux:otp length="6" mode="alphanumeric" x-model="code" class="glass-otp" autofocus />
             <input type="hidden" name="code" :value="code.toUpperCase()">
 
             <flux:button type="submit" variant="ghost" class="glass-button w-full">

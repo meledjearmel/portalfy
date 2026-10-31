@@ -87,6 +87,22 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
+     * Les valeurs par défaut du paquet (10 s × 3 tentatives + 1 s d'attente,
+     * 30 s de lecture) dépassent à elles seules le max_execution_time de
+     * PHP : un routeur injoignable faisait planter la page au lieu
+     * d'afficher "Routeur injoignable". Les commandes artisan gardent les
+     * valeurs du paquet.
+     *
+     * @var array{timeout: int, retry_attempts: int, retry_delay: int, socket_timeout: int}
+     */
+    private const WEB_MIKROTIK_TIMEOUTS = [
+        'timeout' => 3,
+        'retry_attempts' => 1,
+        'retry_delay' => 0,
+        'socket_timeout' => 8,
+    ];
+
+    /**
      * Fait passer la connexion RouterOS de la config statique (mikrotik.php,
      * donc .env) à la configuration enregistrée par l'admin (RouterSetting) :
      * on ré-enregistre le binding singleton de mikrotik-laravel après lui,
@@ -99,10 +115,20 @@ class AppServiceProvider extends ServiceProvider
     protected function configureMikrotikConnection(): void
     {
         $this->app->singleton(MikrotikManager::class, function ($app) {
-            return new MikrotikManager([
+            $config = [
                 ...$app['config']['mikrotik'],
                 ...RouterSetting::current()->toMikrotikConfig(),
-            ]);
+            ];
+
+            if (! $app->runningInConsole()) {
+                $config = [
+                    ...$config,
+                    ...self::WEB_MIKROTIK_TIMEOUTS,
+                    'timeout' => min((int) $config['timeout'], self::WEB_MIKROTIK_TIMEOUTS['timeout']),
+                ];
+            }
+
+            return new MikrotikManager($config);
         });
     }
 }

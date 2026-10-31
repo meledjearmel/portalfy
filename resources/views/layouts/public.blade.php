@@ -3,7 +3,7 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen text-[#0B2B26] antialiased">
+    <body class="portal min-h-screen text-[#0B2B26] antialiased">
         <svg width="0" height="0" style="position: absolute;">
             <defs>
                 <filter id="glass-distortion" x="0%" y="0%" width="100%" height="100%">

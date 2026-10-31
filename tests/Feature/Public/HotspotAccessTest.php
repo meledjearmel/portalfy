@@ -109,3 +109,34 @@ test('without a hotspot context in session, a verified code shows a manual messa
     $response->assertDontSee('hotspot-auto-login-form', false);
     $response->assertSee('Connecte-toi au wifi');
 });
+
+test('an admin-created code starts its access at its first connection, not at its creation', function () {
+    $this->travelTo(now()->startOfMinute());
+    $account = HotspotAccount::factory()->voucher()->create();
+    $account->package->update(['duration_minutes' => 60]);
+
+    $this->travel(3)->days();
+
+    Livewire::test('pages::hotspot-access.show')
+        ->set('code', $account->code)
+        ->call('verify')
+        ->assertHasNoErrors();
+
+    $account->refresh();
+
+    expect($account->activated_at->toDateTimeString())->toBe(now()->toDateTimeString())
+        ->and($account->expires_at->toDateTimeString())->toBe(now()->addHour()->toDateTimeString());
+});
+
+test('validating a code again does not restart its access', function () {
+    $account = HotspotAccount::factory()->voucher()->create();
+
+    Livewire::test('pages::hotspot-access.show')->set('code', $account->code)->call('verify');
+    $firstExpiry = $account->fresh()->expires_at;
+
+    $this->travel(10)->minutes();
+
+    Livewire::test('pages::hotspot-access.show')->set('code', $account->code)->call('verify');
+
+    expect($account->fresh()->expires_at->toDateTimeString())->toBe($firstExpiry->toDateTimeString());
+});

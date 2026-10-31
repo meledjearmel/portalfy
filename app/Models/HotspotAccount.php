@@ -93,6 +93,44 @@ class HotspotAccount extends Model
     }
 
     /**
+     * Un code jamais connecté n'a pas encore de date de fin : son accès
+     * démarre seulement maintenant, pour la durée de son forfait.
+     */
+    public function activateOnFirstUse(): void
+    {
+        if ($this->activated_at !== null) {
+            return;
+        }
+
+        $this->loadMissing('package');
+
+        $this->update([
+            'activated_at' => now(),
+            'expires_at' => now()->addMinutes($this->package->duration_minutes),
+        ]);
+    }
+
+    public function isUnused(): bool
+    {
+        return $this->status === HotspotAccountStatus::Active && $this->activated_at === null;
+    }
+
+    /**
+     * Codes créés par l'admin, encore actifs et jamais connectés : les seuls
+     * qu'on peut imprimer et revendre sans risque.
+     *
+     * @param  Builder<HotspotAccount>  $query
+     * @return Builder<HotspotAccount>
+     */
+    #[Scope]
+    protected function unusedVoucher(Builder $query): Builder
+    {
+        return $query->whereNull('order_id')
+            ->where('status', HotspotAccountStatus::Active)
+            ->whereNull('activated_at');
+    }
+
+    /**
      * @param  Builder<HotspotAccount>  $query
      * @return Builder<HotspotAccount>
      */

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\HotspotAccountStatus;
 use App\Models\HotspotAccount;
 use App\Models\WifiZoneSetting;
 use Illuminate\Http\Request;
@@ -27,8 +26,7 @@ class PrintHotspotAccountsController extends Controller
 
         $accounts = HotspotAccount::query()
             ->with('package')
-            ->whereNull('order_id')
-            ->where('status', HotspotAccountStatus::Active)
+            ->unusedVoucher()
             ->when(
                 isset($validated['lot']),
                 fn ($query) => $query->where('voucher_batch_id', $validated['lot']),

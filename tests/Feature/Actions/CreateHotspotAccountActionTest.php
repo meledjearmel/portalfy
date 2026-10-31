@@ -139,3 +139,12 @@ test('generating several accounts for the same package only creates the RouterOS
 
     expect($profileAddCount)->toBe(1);
 });
+
+test('a voucher has no start or end date until its first connection', function () {
+    MikrotikFake::fake();
+
+    $account = (new CreateHotspotAccountAction)->handle(Package::factory()->create());
+
+    expect($account->activated_at)->toBeNull()
+        ->and($account->expires_at)->toBeNull();
+});

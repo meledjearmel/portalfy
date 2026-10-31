@@ -62,7 +62,7 @@ new #[Title('Codes WiFi')] class extends Component
         $pageIds = $this->accountsQuery()
             ->paginate(15)
             ->getCollection()
-            ->filter(fn (HotspotAccount $account): bool => $account->isVoucher() && $account->status === HotspotAccountStatus::Active)
+            ->filter(fn (HotspotAccount $account): bool => $account->isVoucher() && $account->isUnused())
             ->map(fn (HotspotAccount $account): string => (string) $account->id);
 
         $this->selected = collect($this->selected)->merge($pageIds)->unique()->values()->all();
@@ -272,7 +272,7 @@ new #[Title('Codes WiFi')] class extends Component
             'batches' => $this->origin === 'generes'
                 ? VoucherBatch::query()
                     ->with('package')
-                    ->withCount(['hotspotAccounts as unused_count' => fn ($query) => $query->where('status', HotspotAccountStatus::Active)])
+                    ->withCount(['hotspotAccounts as unused_count' => fn ($query) => $query->unusedVoucher()])
                     ->latest()
                     ->limit(6)
                     ->get()
@@ -397,7 +397,7 @@ new #[Title('Codes WiFi')] class extends Component
                         <tr wire:key="account-{{ $account->id }}">
                             @if ($origin === 'generes')
                                 <td>
-                                    @if ($account->status === HotspotAccountStatus::Active)
+                                    @if ($account->isUnused())
                                         <flux:checkbox wire:model.live="selected" value="{{ $account->id }}" />
                                     @endif
                                 </td>
@@ -417,7 +417,11 @@ new #[Title('Codes WiFi')] class extends Component
                                 </flux:badge>
                             </td>
                             <td class="text-[var(--muted-fg)]">
-                                {{ $account->expires_at?->translatedFormat('d M Y à H:i') ?? '—' }}
+                                @if ($account->activated_at === null && $account->isVoucher())
+                                    Démarre à la 1re connexion
+                                @else
+                                    {{ $account->expires_at?->translatedFormat('d M Y à H:i') ?? '—' }}
+                                @endif
                             </td>
                             <td>
                                 <div class="flex justify-end">
@@ -425,9 +429,11 @@ new #[Title('Codes WiFi')] class extends Component
                                         <flux:button size="sm" variant="ghost" icon="ellipsis-horizontal" aria-label="Actions" />
 
                                         <flux:menu>
-                                            <flux:menu.item icon="clock" wire:click="extend({{ $account->id }})">
-                                                Prolonger d'une durée de forfait
-                                            </flux:menu.item>
+                                            @if ($account->activated_at !== null)
+                                                <flux:menu.item icon="clock" wire:click="extend({{ $account->id }})">
+                                                    Prolonger d'une durée de forfait
+                                                </flux:menu.item>
+                                            @endif
 
                                             @if ($account->status === HotspotAccountStatus::Suspended)
                                                 <flux:menu.item icon="play" wire:click="reactivate({{ $account->id }})">

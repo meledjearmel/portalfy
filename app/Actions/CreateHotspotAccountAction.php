@@ -68,8 +68,12 @@ class CreateHotspotAccountAction
                 'code' => $code,
                 'secret' => $secret,
                 'status' => HotspotAccountStatus::Active,
-                'activated_at' => now(),
-                'expires_at' => now()->addMinutes($package->duration_minutes),
+                // Un code créé par l'admin peut attendre des jours avant
+                // d'être vendu : son accès ne démarre qu'à la première
+                // connexion (voir HotspotAccount::activateOnFirstUse). Un
+                // code acheté en ligne est utilisé tout de suite.
+                'activated_at' => $order ? now() : null,
+                'expires_at' => $order ? now()->addMinutes($package->duration_minutes) : null,
             ]);
         } catch (\Throwable $e) {
             Log::error('RouterOS: échec de la création du compte Hotspot', [

@@ -62,6 +62,8 @@ new #[Layout('layouts.public')] #[Title("J'ai déjà un code")] class extends Co
             return;
         }
 
+        $account->activateOnFirstUse();
+
         $this->account = $account;
     }
 

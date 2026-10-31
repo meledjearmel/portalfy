@@ -33,13 +33,16 @@ class HotspotAccountFactory extends Factory
     }
 
     /**
-     * Indique un voucher généré par l'admin, sans commande associée.
+     * Indique un voucher généré par l'admin, sans commande associée et
+     * jamais connecté (son accès démarre à la première connexion).
      */
     public function voucher(): static
     {
         return $this->state(fn (array $attributes) => [
             'order_id' => null,
             'package_id' => Package::factory(),
+            'activated_at' => null,
+            'expires_at' => null,
         ]);
     }
 

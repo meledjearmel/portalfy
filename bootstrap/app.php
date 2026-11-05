@@ -30,6 +30,16 @@ return Application::configure(basePath: dirname(__DIR__))
             return $guard === 'customer' ? route('login') : route('admin.login');
         });
 
+        // Le site est servi derrière deux reverse proxies qui terminent le TLS :
+        // cloudflared (127.0.0.1, accès public) et Nginx Proxy Manager
+        // (192.168.1.12, accès LAN). Sans les déclarer, Laravel ignore leur
+        // X-Forwarded-Proto et génère des URLs http:// que le navigateur bloque
+        // (mixed content : ni CSS ni JS ne chargent).
+        $middleware->trustProxies(at: [
+            '127.0.0.1',
+            '192.168.1.12',
+        ]);
+
         $middleware->web(append: [
             CaptureHotspotContext::class,
         ]);

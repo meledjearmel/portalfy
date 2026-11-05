@@ -8,10 +8,15 @@ use Illuminate\Database\Seeder;
 class PackageSeeder extends Seeder
 {
     /**
-     * Forfaits de démonstration.
+     * Forfaits de départ. Hors local, semés seulement si aucun forfait
+     * n'existe, pour ne pas recréer ceux que l'admin a supprimés ou renommés.
      */
     public function run(): void
     {
+        if (! app()->environment('local') && Package::query()->withTrashed()->exists()) {
+            return;
+        }
+
         $packages = [
             ['name' => '1 heure', 'price' => 200, 'duration_minutes' => 60, 'max_speed_mbps' => 2, 'max_devices' => 1, 'sort_order' => 1],
             ['name' => '1 jour', 'price' => 500, 'duration_minutes' => 1440, 'max_speed_mbps' => 5, 'max_devices' => 2, 'sort_order' => 2, 'is_popular' => true],

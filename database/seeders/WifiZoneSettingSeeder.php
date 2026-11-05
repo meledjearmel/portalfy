@@ -9,11 +9,12 @@ use Illuminate\Database\Seeder;
 class WifiZoneSettingSeeder extends Seeder
 {
     /**
-     * Configuration de démonstration de la WiFi Zone.
+     * Paramètres de la WiFi Zone : démo en local, ligne vierge ailleurs
+     * (créée seulement si absente, la config admin n'est jamais écrasée).
      */
     public function run(): void
     {
-        WifiZoneSetting::query()->updateOrCreate(['id' => 1], [
+        $attributes = [
             'name' => 'RapidNet Wifi Zone',
             'slogan' => 'Internet premium, partout, sans compte obligatoire',
             'description' => 'Le hotspot WiFi payant qui vous connecte en quelques secondes.',
@@ -29,6 +30,14 @@ class WifiZoneSettingSeeder extends Seeder
             'terms' => 'Conditions générales d\'utilisation de démonstration.',
             'privacy_policy' => 'Politique de confidentialité de démonstration.',
             'credential_mode' => CredentialMode::Unique,
-        ]);
+        ];
+
+        if (app()->environment('local')) {
+            WifiZoneSetting::query()->updateOrCreate(['id' => 1], $attributes);
+
+            return;
+        }
+
+        WifiZoneSetting::query()->firstOrCreate(['id' => 1]);
     }
 }

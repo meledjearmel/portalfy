@@ -23,6 +23,7 @@ bun run build
 
 echo "→ Base de données"
 php artisan migrate --force
+php artisan db:seed --force
 
 echo "→ Lien public/storage (logo et fond du portail, si absent)"
 [ -L public/storage ] || php artisan storage:link

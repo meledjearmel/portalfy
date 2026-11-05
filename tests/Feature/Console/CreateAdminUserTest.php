@@ -28,3 +28,22 @@ test('it refuses a duplicate email', function () {
 
     expect(User::query()->where('email', 'jane@portalfy.test')->count())->toBe(1);
 });
+
+test('it generates an 8 character password when none is given', function () {
+    $this->artisan('app:create-user', [
+        '--name' => 'Jane Admin',
+        '--email' => 'jane@portalfy.test',
+    ])->expectsOutputToContain('Mot de passe')->assertSuccessful();
+
+    expect(User::query()->where('email', 'jane@portalfy.test')->exists())->toBeTrue();
+});
+
+test('it refuses a password shorter than 8 characters', function () {
+    $this->artisan('app:create-user', [
+        '--name' => 'Jane Admin',
+        '--email' => 'jane@portalfy.test',
+        '--password' => 'Short1!',
+    ])->assertFailed();
+
+    expect(User::query()->where('email', 'jane@portalfy.test')->exists())->toBeFalse();
+});
